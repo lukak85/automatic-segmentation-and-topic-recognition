@@ -1,0 +1,6 @@
+{
+  "threshold_angle": 30,
+  "threshold_paralldist": 30,
+  "threshold_perpendist": 30,
+  "threshold_overlap": 1.5
+}

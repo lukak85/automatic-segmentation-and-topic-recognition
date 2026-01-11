@@ -1,0 +1,7 @@
+{
+  "threshold_angle": 60.0,
+  "threshold_paralldist": 22.1,
+  "threshold_perpendist": 28.9,
+  "threshold_overlap": 1,
+  "dots_to_lines": true
+}

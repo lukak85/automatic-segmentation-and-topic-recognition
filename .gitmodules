@@ -1,0 +1,3 @@
+[submodule "layout-parser"]
+	path = layout-parser
+	url = https://github.com/lukak85/layout-parser.git
