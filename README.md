@@ -14,3 +14,19 @@ Currently supported models (apart from the already included ones) are:
 - docstrum (built on top of https://github.com/chulwoopack/docstrum)
 - layoutlmv3
 - dots.ocr
+
+## Pre-requisites
+
+Run the following command in the appropriate environment to install layoutparser:
+
+```bash
+pip install -e layoutparser
+```
+
+### Model specific dependencies
+
+#### DocLayout-YOLO
+
+```bash
+pip install -r TODO
+```
