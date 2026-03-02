@@ -1,6 +1,9 @@
 import argparse
+from contextlib import redirect_stdout
 import json
+import os
 
+from numpy.f2py.crackfortran import verbose
 from pycocotools.coco import COCO
 
 from utils.conversionutils import *
@@ -160,7 +163,7 @@ if __name__ == "__main__":
         required=False,
     )
     parser.add_argument(
-        "-i", "--image", help="Path to the input image", type=str, required=True
+        "-f", "--file", help="Path to the input file", type=str, required=True
     )
     parser.add_argument(
         "-m",
@@ -195,10 +198,17 @@ if __name__ == "__main__":
     coco = COCO(COCO_ANNO_PATH)
     config = read_config(args.config)
 
-    coco_anns = None
     show = False
+
+    # For single image
     image = None
+    coco_anns = None
     img_info = None
+    # For PDF and corpus
+    image_list = []
+    coco_anns_list = []
+    img_info_list = []
+
     if args.mode == "page":
         for image_id, image_info in coco.imgs.items():
             if image_info["file_name"] == args.image.split("/")[-1]:
@@ -209,8 +219,17 @@ if __name__ == "__main__":
                 break
         show = args.display_detection or args.display_ground
     elif args.mode == "pdf":
-        # TODO
-        pass
+        for image_id, image_info in coco.imgs.items():
+            if args.file.split("/")[-1] in image_info["file_name"]:
+                coco_anns = load_coco_annotations(
+                    coco.loadAnns(coco.getAnnIds([image_id]))
+                )
+                image_list.append(
+                    "/".join(args.file.split("/")[:-1]) + "/" + image_info["file_name"]
+                )
+                coco_anns_list.append(coco_anns)
+                img_info_list.append(image_info)
+        show = args.display_detection or args.display_ground
     elif args.mode == "corpus":
         coco.imgs.keys()
 
@@ -229,7 +248,7 @@ if __name__ == "__main__":
             if config is not None
             else lp.DocstrumLayoutModel(verbose=args.verbose)
         )
-        image = read_picture(args.image, to_rgb=False)
+        image = read_picture(args.file, to_rgb=False)
         pass
     elif args.dla_method == "dotsocr":
         if not check_connection():
@@ -268,26 +287,50 @@ if __name__ == "__main__":
 
     # Actually reading a picture
     if image is None and args.dla_method == "detectron2":
-        image = read_picture(args.image)
+        image = read_picture(args.file)
     # Just passing the path to the picture
     else:
-        image = args.image
+        image = args.file
 
     categories = coco.cats
 
-    main(
-        image,
-        img_info,
-        coco_anns,
-        model,
-        args.evaluation_metric.lower() if args.evaluation_metric is not None else None,
-        categories,  # TODO: keep in mind that ground and detection categories might not be the same!
-        visualization=show,
-        display_ground=args.display_ground,
-        display_img=cv2.imread(args.image),
-        save_coco=args.save,
-        save_image=args.save_image,
-    )
+    if not coco_anns_list and not img_info_list:
+        coco_anns_list.append(coco_anns)
+        img_info_list.append(img_info)
+
+    for image, coco_anns, img_info in zip(image_list, coco_anns_list, img_info_list):
+        print(f"Processing image: {image}")
+        with open(os.devnull, "w") as fnull:
+            with redirect_stdout(fnull):
+                # TODO: figure this out
+                pass
+
+        save_coco_path = (
+            args.save
+            if args.mode == "page"
+            else args.save
+            + "/"
+            + image.split("/")[-1].split("_")[0]
+            + "/"
+            + image.split("/")[-1].split("_")[1].replace(".jpg", ".json")
+        )
+        main(
+            image,
+            img_info,
+            coco_anns,
+            model,
+            (
+                args.evaluation_metric.lower()
+                if args.evaluation_metric is not None
+                else None
+            ),
+            categories,  # TODO: keep in mind that ground and detection categories might not be the same!
+            visualization=show,
+            display_ground=args.display_ground,
+            display_img=cv2.imread(image),
+            save_coco=save_coco_path,
+            save_image=args.save_image,
+        )
 
 """
 Usage example:

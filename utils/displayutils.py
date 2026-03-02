@@ -4,15 +4,25 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 COLOR_MAP = {
-    'Text':   'red',
-    'Title':  'blue',
-    'List':   'green',
-    'Table':  'purple',
-    'Figure': 'pink',
+    "Paragraph": "red",
+    "Title": "blue",
+    "List": "green",
+    "Table": "purple",
+    "Figure": "pink",
 }
 
+
 def draw_layout(img, layout):
-    viz = lp.draw_box(img, layout, color_map=COLOR_MAP)
+    viz = lp.draw_box(
+        img,
+        [b.set(id=f"{b.type}/{b.score:.2f}") for b in layout],
+        # [b.set(id=f"{b.type}/{b.score:.2f}") for b in layout],
+        color_map=COLOR_MAP,
+        show_element_id=True,
+        id_font_size=10,
+        id_text_background_color="grey",
+        id_text_color="white",
+    )
     draw_pil_image(viz)  # show the results
 
 
