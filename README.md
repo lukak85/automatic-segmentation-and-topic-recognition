@@ -25,6 +25,8 @@ Run the following command in the appropriate environment to install layoutparser
 pip install -e layoutparser
 ```
 
+For model specific dependencies, see [Model specific dependencies](#model-specific-dependencies) section below.
+
 # Example usage of `main.py` file
 
 These examples use DocLayout-YOLO as the model for segment detection, but you can replace it with any of the supported
@@ -64,9 +66,12 @@ same prefix):
         -p ./annotation/pawls/labels/images/9057f730adf6c4b43959e687df737ed7c84618b62567853161ee45cbb688ba21_15.jpg
     ```
 
-### Model specific dependencies
+# Model specific dependencies
 
-#### DocLayout-YOLO
+In order to run the specified models, it's recommended to create separate environments for each of them. The
+dependencies for each model are listed below.
+
+## DocLayout-YOLO
 
 ```bash
 pip install -r TODO
