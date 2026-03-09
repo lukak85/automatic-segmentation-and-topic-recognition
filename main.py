@@ -15,7 +15,7 @@ from utils.fileutils import *
 # Parameters
 # ======================================================================================================================
 
-COCO_ANNO_PATH = "annotation/pawls/labels/development_user@example.com.json"
+COCO_ANNO_PATH = "dataset/annotations.json"
 
 
 # ======================================================================================================================

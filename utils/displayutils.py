@@ -39,7 +39,8 @@ def draw_layout(img, layout, save_path=None):
     viz = lp.draw_box(
         img,
         # [b.set(id=f"{b.id}/{b.type}/{b.score:.2f}") for b in layout],
-        [b.set(id=f"{b.id}") for b in layout],
+        [b.set(id=f"{b.id}/{b.type}") for b in layout],
+        # [b.set(id=f"{b.id}") for b in layout],
         # [b.set(id=f"{b.type}/{b.score:.2f}") for b in layout],
         color_map=GLASANA_COLOR_MAP,
         show_element_id=True,
