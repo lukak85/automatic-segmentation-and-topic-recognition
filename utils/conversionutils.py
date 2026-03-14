@@ -69,3 +69,11 @@ def layout_parser_to_coco(
         coco_full["categories"].append(categories[category_id])
 
     return coco_full
+
+
+def pdf_to_image(filename):
+    from pdf2image import convert_from_path
+    pages = convert_from_path(f'./data/pdf/{filename}.pdf', 500)
+
+    for count, page in enumerate(pages):
+        page.save(f'./data/pdf/images/input/{filename}_{count}.jpg', 'JPEG')

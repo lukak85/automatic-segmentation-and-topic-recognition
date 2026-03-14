@@ -1,9 +1,7 @@
 import argparse
-from contextlib import redirect_stdout
-import json
 import os
+from contextlib import redirect_stdout
 
-from numpy.f2py.crackfortran import verbose
 from pycocotools.coco import COCO
 
 from utils.conversionutils import *
@@ -16,6 +14,7 @@ from utils.fileutils import *
 # ======================================================================================================================
 
 COCO_ANNO_PATH = "dataset/annotations.json"
+WEIGHTS_PATH = "/"
 
 
 # ======================================================================================================================
@@ -34,7 +33,7 @@ def main(
     display_ground=False,
     display_img=None,
     save_coco=None,
-    save_image=False,
+    save_image_path=None,
 ):
     # Preform layout analysis
     if model is not None:  # TODO: do check if it's correct class
@@ -60,10 +59,16 @@ def main(
         if not save_coco.endswith(".json"):
             raise Exception("The save path for COCO annotations must end with .json")
 
+        coco_annotations = layout_parser_to_coco(layout, image_info, categories),
+
         save_coco_to_json(
-            layout_parser_to_coco(layout, image_info, categories),
-            save_coco,
+            coco_annotations, save_coco,
         )
+
+    if save_image_path is not None:
+        draw_layout(
+            display_img, layout, save_path=save_image_path
+        )  # Drawing box for detection
 
 
 # ======================================================================================================================
@@ -180,10 +185,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-si",
-        "--save-image",
+        "--save-image-path",
         help="Save the image with detected bounding boxes in a file.",
-        action="store_true",
-        default=False,
+        type=str,
+        required=False,
     )
     parser.add_argument(
         "-v",
@@ -211,11 +216,15 @@ if __name__ == "__main__":
 
     if args.mode == "page":
         for image_id, image_info in coco.imgs.items():
-            if image_info["file_name"] == args.image.split("/")[-1]:
+            if image_info["file_name"] == args.file.split("/")[-1]:
                 coco_anns = load_coco_annotations(
                     coco.loadAnns(coco.getAnnIds([image_id]))
                 )
-                img_info = image_info
+                image_list.append(
+                    "/".join(args.file.split("/")[:-1]) + "/" + image_info["file_name"]
+                )
+                coco_anns_list.append(coco_anns)
+                img_info_list.append(image_info)
                 break
         show = args.display_detection or args.display_ground
     elif args.mode == "pdf":
@@ -234,22 +243,25 @@ if __name__ == "__main__":
         coco.imgs.keys()
 
     model = None
-    if args.dla_method == "detectron2":
-        model = lp.Detectron2LayoutModel(
-            "lp://PubLayNet/faster_rcnn_R_50_FPN_3x/config",
-            model_path="/home/luka/.torch/iopath_cache/s/dgy9c10wykk4lq4/model_final.pth",
-            # your local checkpoint
-            extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8],
-            label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
-        )
-    elif args.dla_method == "docstrum":
+    # ==================================================================================================================
+    # Currently considered actual models
+    # ==================================================================================================================
+    if args.dla_method == "layoutlmv3":
         model = (
-            lp.DocstrumLayoutModel(**config, verbose=args.verbose)
+            lp.LayoutLMv3LayoutModel(**config)
             if config is not None
-            else lp.DocstrumLayoutModel(verbose=args.verbose)
+            else lp.LayoutLMv3LayoutModel(WEIGHTS_PATH + "/layoutlmv3/model_final.pth")
         )
-        image = read_picture(args.file, to_rgb=False)
-        pass
+    elif args.dla_method == "dit":
+        model = (
+            lp.DiTLMv3LayoutModel(**config)
+            if config is not None
+            else lp.DiTLayoutModel(WEIGHTS_PATH + "/dit/publaynet_dit-b_cascade.pth")
+        )
+    elif args.dla_method == "doclayout-yolo":
+        model = lp.DocLayoutYOLOLayoutModel(
+            WEIGHTS_PATH + "/doclayoutyolo/doclayout_yolo_docstructbench_imgsz1024.pt"
+        )
     elif args.dla_method == "dotsocr":
         if not check_connection():
             print(
@@ -262,35 +274,35 @@ if __name__ == "__main__":
             if config is not None
             else lp.DotsOCRLayoutModel()
         )
-    elif args.dla_method == "layoutlmv3":
-        # TODO: implement LayoutLMv3 model
-        # from layoutparser.src.layoutparser.models.layoutlmv3 import LayoutLMv3LayoutModel
-        # if config is None:
-        #    model = LayoutLMv3LayoutModel()
-        # else:
-        #    model = LayoutLMv3LayoutModel(**config)
-        raise Exception(f"LayoutLMv3 model is not yet implemented.")
-    elif args.dla_method == "dit":
-        # TODO: implement DiT model
-        # from layoutparser.dit import DiTLayoutModel
-        # if config is None:
-        #    model = DiTLayoutModel()
-        # else:
-        #    model = DiTLayoutModel(**config)
-        raise Exception(f"DiT model is not yet implemented.")
-    elif args.dla_method == "doclayout-yolo":
-        model = lp.DocLayoutYOLOLayoutModel(
-            "./data/model/doclayoutyolo/doclayout_yolo_docstructbench_imgsz1024.pt"
+    elif args.dla_method == "vgt":
+        # model = lp.VGTLayoutModel()
+        raise Exception(f"VGT model is not yet implemented.")
+    # ==================================================================================================================
+    # Other models
+    # ==================================================================================================================
+    elif args.dla_method == "docstrum": # Mostly as proof of concept for a non-ML DLA
+        model = (
+            lp.DocstrumLayoutModel(**config, verbose=args.verbose)
+            if config is not None
+            else lp.DocstrumLayoutModel(verbose=args.verbose)
+        )
+        image = read_picture(args.file, to_rgb=False)
+    elif args.dla_method == "nemotron": # TODO: define if it's gonna be added or not
+        raise Exception(f"Nemotron model is not yet implemented.")
+    elif args.dla_method == "detectron2": # Already included in layout-parser, included for thoroughness
+        model = lp.Detectron2LayoutModel(
+            "lp://PubLayNet/faster_rcnn_R_50_FPN_3x/config",
+            model_path="/home/luka/.torch/iopath_cache/s/dgy9c10wykk4lq4/model_final.pth",
+            # your local checkpoint
+            extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8],
+            label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
         )
     else:
         raise Exception(f"Unknown DLA method: {args.dla_method}")
 
     # Actually reading a picture
-    if image is None and args.dla_method == "detectron2":
-        image = read_picture(args.file)
-    # Just passing the path to the picture
-    else:
-        image = args.file
+    if args.dla_method in ["detectron2"]:
+        image_list = [read_picture(img) for img in image_list]
 
     categories = coco.cats
 
@@ -327,9 +339,9 @@ if __name__ == "__main__":
             categories,  # TODO: keep in mind that ground and detection categories might not be the same!
             visualization=show,
             display_ground=args.display_ground,
-            display_img=cv2.imread(image),
+            display_img=cv2.imread("/".join(args.file.split("/")[:-1]) + "/" + img_info["file_name"]),
             save_coco=save_coco_path,
-            save_image=args.save_image,
+            save_image_path=args.save_image_path,
         )
 
 """

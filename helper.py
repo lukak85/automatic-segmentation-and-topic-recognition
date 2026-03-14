@@ -5,9 +5,9 @@ from pycocotools.coco import COCO
 import os
 import json
 
-from utils.fileutils import save_coco_to_json
+from utils.fileutils import save_coco_to_json, read_json
 
-IMAGES_ROOT = "./annotation/pawls/labels/images/"
+IMAGES_ROOT = "./dataset/images/"
 STATUS_JSON = "annotation/pawls/skiff_files/apps/pawls/papers/status/development_user@example.com.json"
 
 
@@ -324,6 +324,19 @@ if __name__ == "__main__":
         coco = join_annotations(args.path)
 
         save_coco_to_json(coco, args.output_path)
+    elif args.mode == "assign-ids":
+        if not args.path:
+            print("Please provide a folder path to annotations")
+            exit(1)
+        json_to_assign_ids = read_json(args.path)
+
+        anno_id = 0
+        for annotation in json_to_assign_ids["annotations"]:
+            annotation["id"] = anno_id
+            anno_id += 1
+            annotation["segmentation"] = None
+
+        save_coco_to_json(json_to_assign_ids, args.output_path)
     elif args.remove_duplicates:
         coco = COCO(args.annotations_file)
         coco_full = remove_duplicates(coco)

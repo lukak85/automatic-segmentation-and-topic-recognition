@@ -1,12 +1,16 @@
-def read_config(config_path):
+def read_json(path):
     import json
 
-    config = None
-    if config_path is not None:
-        with open(config_path, "r") as config_file:
-            config = json.load(config_file)
+    j = None
+    if path is not None:
+        with open(path, "r") as file:
+            j = json.load(file)
 
-    return config
+    return j
+
+
+def read_config(config_path):
+    return read_json(config_path)
 
 
 def save_coco_to_json(coco_data, output_path):
