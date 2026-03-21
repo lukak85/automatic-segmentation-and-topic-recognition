@@ -1,9 +1,3 @@
-"""Helper script for managing COCO annotations.
-
-Supports joining annotations from multiple files, removing duplicates,
-reordering images, stripping scores, and visualizing annotations.
-"""
-
 import argparse
 import json
 import os
@@ -12,7 +6,7 @@ import cv2
 from pycocotools.coco import COCO
 
 from utils.displayutils import *
-from utils.fileutils import save_coco_to_json
+from utils.fileutils import save_coco_to_json, read_json
 
 IMAGES_ROOT = "./dataset/images/"
 STATUS_JSON = "annotation/pawls/skiff_files/apps/pawls/papers/status/development_user@example.com.json"
@@ -329,6 +323,16 @@ if __name__ == "__main__":
             print("Please provide a folder path to join annotations.")
             exit(1)
         coco_data = join_annotations(args.path)
+        save_coco_to_json(coco_data, args.output_path)
+
+    elif args.mode == "assign-ids":
+        if not args.path:
+            print("Please provide a folder path to join annotations.")
+            exit(1)
+        coco_data = read_json(args.path)
+        for anno_id, annotation in enumerate(coco_data["annotations"]):
+            annotation["id"] = anno_id
+            annotation["segmentation"] = None
         save_coco_to_json(coco_data, args.output_path)
 
     elif args.remove_duplicates:

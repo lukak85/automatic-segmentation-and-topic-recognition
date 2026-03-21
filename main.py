@@ -8,8 +8,8 @@ from utils.evalutils import *
 from utils.fileutils import *
 
 # Path to the ground-truth COCO annotations file
-COCO_ANNO_PATH = "annotation/pawls/labels/development_user@example.com.json"
-
+COCO_ANNO_PATH = "dataset/annotations.json"
+WEIGHTS_PATH = "/"
 
 # ==============================================================================
 # Main function
@@ -27,7 +27,7 @@ def main(
     display_ground=False,
     display_img=None,
     save_coco=None,
-    save_image=False,
+    save_image_path=None,
 ):
     """Run layout analysis on a single image and optionally evaluate/visualize/save.
 
@@ -72,6 +72,10 @@ def main(
             layout_parser_to_coco(layout, image_info, categories),
             save_coco,
         )
+
+    # Save visualized detections
+    if save_image_path is not None:
+        draw_layout(display_img, layout, save_path=save_image_path)
 
 
 # ==============================================================================
@@ -160,14 +164,26 @@ def init_model(method, config, verbose=False):
             else lp.DotsOCRLayoutModel()
         )
     elif method == "layoutlmv3":
-        raise NotImplementedError("LayoutLMv3 model is not yet implemented.")
+        return (
+            lp.LayoutLMv3LayoutModel(**config)
+            if config is not None
+            else lp.LayoutLMv3LayoutModel(WEIGHTS_PATH + "/layoutlmv3/model_final.pth")
+        )
     elif method == "dit":
-        raise NotImplementedError("DiT model is not yet implemented.")
+        return (
+            lp.DiTLayoutModel(**config)
+            if config is not None
+            else lp.DiTLayoutModel(WEIGHTS_PATH + "/dit/publaynet_dit-b_cascade.pth")
+        )
     elif method == "doclayout-yolo":
         return lp.DocLayoutYOLOLayoutModel(
             "./data/model/doclayoutyolo/doclayout_yolo_docstructbench_imgsz1024.pt",
             label_map="Glasana"
         )
+    elif method == "vgt":
+        raise NotImplementedError(f"VGT model is not yet implemented.")
+    elif args.dla_method == "nemotron":
+        raise NotImplementedError(f"Nemotron model is not yet implemented.")
     else:
         raise ValueError(f"Unknown DLA method: {method}")
 
@@ -187,14 +203,43 @@ def load_images_for_mode(mode, coco, file_path):
     coco_anns_list = []
     img_info_list = []
 
+    """
+    if args.mode == "page":
+                coco_anns = load_coco_annotations(
+                    coco.loadAnns(coco.getAnnIds([image_id]))
+                )
+                image_list.append(
+                    "/".join(args.file.split("/")[:-1]) + "/" + image_info["file_name"]
+                )
+                coco_anns_list.append(coco_anns)
+                img_info_list.append(image_info)
+                break
+        show = args.display_detection or args.display_ground
+    elif args.mode == "pdf":
+        for image_id, image_info in coco.imgs.items():
+            if args.file.split("/")[-1] in image_info["file_name"]:
+                coco_anns = load_coco_annotations(
+                    coco.loadAnns(coco.getAnnIds([image_id]))
+                )
+                image_list.append(
+                    "/".join(args.file.split("/")[:-1]) + "/" + image_info["file_name"]
+                )
+                coco_anns_list.append(coco_anns)
+                img_info_list.append(image_info)
+        show = args.display_detection or args.display_ground
+    elif args.mode == "corpus":
+        coco.imgs.keys()
+    """
+
     if mode == "page":
         filename = file_path.split("/")[-1]
+        parent_dir = "/".join(file_path.split("/")[:-1])
         for image_id, image_info in coco.imgs.items():
             if image_info["file_name"] == filename:
                 coco_anns = load_coco_annotations(
                     coco.loadAnns(coco.getAnnIds([image_id]))
                 )
-                image_list.append(file_path)
+                image_list.append(f"{parent_dir}/{image_info['file_name']}")
                 coco_anns_list.append(coco_anns)
                 img_info_list.append(image_info)
                 break
@@ -212,8 +257,7 @@ def load_images_for_mode(mode, coco, file_path):
                 img_info_list.append(image_info)
 
     elif mode == "corpus":
-        # TODO: implement corpus-level processing
-        pass
+        NotImplementedError(f"Corpus document layout analysis is not yet implemented.")
 
     return image_list, coco_anns_list, img_info_list
 
@@ -284,9 +328,9 @@ if __name__ == "__main__":
         type=str,
     )
     parser.add_argument(
-        "-si", "--save-image",
-        help="Save the visualization image to a file",
-        action="store_true",
+        "-si", "--save-image-path",
+        help="Save image with detections displayed in this file",
+        type=str,
     )
     parser.add_argument(
         "-v", "--verbose",
@@ -337,7 +381,7 @@ if __name__ == "__main__":
             categories,
             visualization=show,
             display_ground=args.display_ground,
-            display_img=cv2.imread(image_path),
+            display_img=cv2.imread(image),
             save_coco=save_coco_path,
-            save_image=args.save_image,
+            save_image_path=args.save_image_path,
         )
