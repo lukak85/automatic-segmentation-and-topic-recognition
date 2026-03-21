@@ -203,34 +203,6 @@ def load_images_for_mode(mode, coco, file_path):
     coco_anns_list = []
     img_info_list = []
 
-    """
-    if args.mode == "page":
-                coco_anns = load_coco_annotations(
-                    coco.loadAnns(coco.getAnnIds([image_id]))
-                )
-                image_list.append(
-                    "/".join(args.file.split("/")[:-1]) + "/" + image_info["file_name"]
-                )
-                coco_anns_list.append(coco_anns)
-                img_info_list.append(image_info)
-                break
-        show = args.display_detection or args.display_ground
-    elif args.mode == "pdf":
-        for image_id, image_info in coco.imgs.items():
-            if args.file.split("/")[-1] in image_info["file_name"]:
-                coco_anns = load_coco_annotations(
-                    coco.loadAnns(coco.getAnnIds([image_id]))
-                )
-                image_list.append(
-                    "/".join(args.file.split("/")[:-1]) + "/" + image_info["file_name"]
-                )
-                coco_anns_list.append(coco_anns)
-                img_info_list.append(image_info)
-        show = args.display_detection or args.display_ground
-    elif args.mode == "corpus":
-        coco.imgs.keys()
-    """
-
     if mode == "page":
         filename = file_path.split("/")[-1]
         parent_dir = "/".join(file_path.split("/")[:-1])
