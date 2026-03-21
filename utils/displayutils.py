@@ -1,8 +1,11 @@
+"""Visualization utilities for displaying document layouts."""
+
 import cv2
 import layoutparser as lp
 import matplotlib.pyplot as plt
 import numpy as np
 
+# Color maps for layoutparser's draw_box function
 COLOR_MAP = {
     "Paragraph": "red",
     "Title": "blue",
@@ -12,6 +15,7 @@ COLOR_MAP = {
     "Header": "orange",
 }
 
+# Color map matching our annotation categories
 GLASANA_COLOR_MAP = {
     "Header": "red",
     "Footer": "grey",
@@ -35,27 +39,35 @@ GLASANA_COLOR_MAP = {
 }
 
 
-def draw_layout(img, layout, save_path=None):
+def draw_layout(img, layout, save_path=None, has_score=False):
+    """Draw labeled bounding boxes on an image and display it.
+
+    Args:
+        img: Image (numpy array, BGR or RGB).
+        layout: A layoutparser Layout with TextBlocks.
+        save_path: Optional path to save the figure.
+    """
     viz = lp.draw_box(
         img,
-        # [b.set(id=f"{b.id}/{b.type}/{b.score:.2f}") for b in layout],
-        [b.set(id=f"{b.id}/{b.type}") for b in layout],
-        # [b.set(id=f"{b.id}") for b in layout],
-        # [b.set(id=f"{b.type}/{b.score:.2f}") for b in layout],
+        [b.set(id=f"{b.score:.2f}/{b.type}" if has_score else f"{b.type}") for b in layout],
         color_map=GLASANA_COLOR_MAP,
         show_element_id=True,
         id_font_size=10,
         id_text_background_color="grey",
         id_text_color="white",
     )
-    draw_pil_image(viz, save_path)  # show the results
+    draw_pil_image(viz, save_path)
 
 
 def draw_pil_image(img, save_path=None):
+    """Display a PIL/numpy image with matplotlib, optionally saving to file.
+
+    Handles BGR-to-RGB conversion for OpenCV images.
+    """
     if not isinstance(img, np.ndarray):
         img = np.array(img)
 
-    # If image came from OpenCV, convert BGR → RGB
+    # Convert BGR to RGB if needed (3-channel images from OpenCV)
     if img.ndim == 3 and img.shape[2] == 3:
         img = img[:, :, ::-1]
 
@@ -67,6 +79,7 @@ def draw_pil_image(img, save_path=None):
 
 
 def draw_cv2_image(img):
+    """Display an OpenCV BGR image with matplotlib."""
     plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     plt.show()
     plt.close()

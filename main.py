@@ -1,9 +1,5 @@
 import argparse
-from contextlib import redirect_stdout
-import json
-import os
 
-from numpy.f2py.crackfortran import verbose
 from pycocotools.coco import COCO
 
 from utils.conversionutils import *
@@ -11,16 +7,13 @@ from utils.displayutils import *
 from utils.evalutils import *
 from utils.fileutils import *
 
-# ======================================================================================================================
-# Parameters
-# ======================================================================================================================
-
-COCO_ANNO_PATH = "dataset/annotations.json"
+# Path to the ground-truth COCO annotations file
+COCO_ANNO_PATH = "annotation/pawls/labels/development_user@example.com.json"
 
 
-# ======================================================================================================================
+# ==============================================================================
 # Main function
-# ======================================================================================================================
+# ==============================================================================
 
 
 def main(
@@ -28,7 +21,7 @@ def main(
     image_info,
     ground_truth,
     model,
-    evaluation_metic,
+    evaluation_metric,
     categories,
     visualization=False,
     display_ground=False,
@@ -36,29 +29,44 @@ def main(
     save_coco=None,
     save_image=False,
 ):
-    # Preform layout analysis
-    if model is not None:  # TODO: do check if it's correct class
-        layout = model.detect(img)
-    else:
-        raise Exception("No DLA model is provided.")
+    """Run layout analysis on a single image and optionally evaluate/visualize/save.
+
+    Args:
+        img: Image data (numpy array) or file path (str), depending on the model.
+        image_info: COCO image info dict (id, file_name, width, height).
+        ground_truth: Ground-truth layout (lp.Layout) or None.
+        model: A layoutparser model instance with a .detect() method.
+        evaluation_metric: "f1" or "map", or None to skip evaluation.
+        categories: COCO category dict from the annotation file.
+        visualization: Whether to display detected bounding boxes.
+        display_ground: Whether to also display ground-truth boxes.
+        display_img: OpenCV image for visualization (BGR format).
+        save_coco: File path (.json) to save COCO-format detection results.
+        save_image: Whether to save the visualization image.
+    """
+    if model is None:
+        raise ValueError("No DLA model is provided.")
+
+    # Perform layout detection
+    layout = model.detect(img)
 
     # Visualization
     if visualization:
-        draw_layout(display_img, layout)  # Drawing box for detection
+        draw_layout(display_img, layout, has_score=True)
         if ground_truth is not None and display_ground:
-            draw_layout(display_img, ground_truth)  # Drawing box for ground truth
+            draw_layout(display_img, ground_truth)
 
-    # Evaluation
-    if evaluation_metic is not None:  # TODO: add back later
-        if evaluation_metic == "f1":
+    # Evaluation against ground truth
+    if evaluation_metric is not None:
+        if evaluation_metric == "f1":
             print(f1_score(layout, ground_truth))
-        else:  # Default evaluation metric
+        else:
             print(mean_average_precision(layout, ground_truth))
 
+    # Save detections in COCO format
     if save_coco is not None:
-        # Check if filename ends with .json, else throw an error
         if not save_coco.endswith(".json"):
-            raise Exception("The save path for COCO annotations must end with .json")
+            raise ValueError("The save path for COCO annotations must end with .json")
 
         save_coco_to_json(
             layout_parser_to_coco(layout, image_info, categories),
@@ -66,12 +74,13 @@ def main(
         )
 
 
-# ======================================================================================================================
+# ==============================================================================
 # Helper functions
-# ======================================================================================================================
+# ==============================================================================
 
 
 def read_picture(path, to_rgb=True):
+    """Read an image from disk, optionally converting BGR to RGB."""
     img = cv2.imread(path)
     if to_rgb:
         img = img[..., ::-1]
@@ -79,30 +88,26 @@ def read_picture(path, to_rgb=True):
 
 
 def load_coco_annotations(annotations, coco=None):
-    """
+    """Convert a list of COCO annotation dicts into a layoutparser Layout.
+
     Args:
-        annotations (List):
-            a list of coco annotaions for the current image
-        coco (`optional`, defaults to `False`):
-            COCO annotation object instance. If set, this function will
-            convert the loaded annotation category ids to category names
-            set in COCO.categories
+        annotations: List of COCO annotation dicts with 'bbox', 'category_id', 'id'.
+        coco: Optional COCO object. If provided, category IDs are resolved to names.
     """
     layout = lp.Layout()
 
-    for ele in annotations:
-
-        x, y, w, h = ele["bbox"]
-
+    for ann in annotations:
+        x, y, w, h = ann["bbox"]
+        category = (
+            ann["category_id"]
+            if coco is None
+            else coco.cats[ann["category_id"]]["name"]
+        )
         layout.append(
             lp.TextBlock(
                 block=lp.Rectangle(x, y, w + x, h + y),
-                type=(
-                    ele["category_id"]
-                    if coco is None
-                    else coco.cats[ele["category_id"]]["name"]
-                ),
-                id=ele["id"],
+                type=category,
+                id=ann["id"],
             )
         )
 
@@ -110,232 +115,229 @@ def load_coco_annotations(annotations, coco=None):
 
 
 def check_connection(address="localhost", port=8080, timeout=5):
+    """Check whether a TCP connection can be established (e.g. for vLLM server)."""
     import socket
 
     try:
-        # connect to the host -- tells us if the host is actually reachable
         socket.create_connection((address, port), timeout=timeout)
         return True
     except OSError:
+        return False
+
+
+def init_model(method, config, verbose=False):
+    """Instantiate the appropriate DLA model based on the method name.
+
+    Args:
+        method: One of "detectron2", "docstrum", "dotsocr", "doclayout-yolo",
+                "layoutlmv3", or "dit".
+        config: Dict of model kwargs loaded from JSON config, or None.
+        verbose: Whether to enable verbose output (only used by some models).
+
+    Returns:
+        A layoutparser model instance.
+    """
+    if method == "detectron2":
+        return lp.Detectron2LayoutModel(
+            "lp://PubLayNet/faster_rcnn_R_50_FPN_3x/config",
+            model_path="/home/luka/.torch/iopath_cache/s/dgy9c10wykk4lq4/model_final.pth",
+            extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8],
+            label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
+        )
+    elif method == "docstrum":
+        return (
+            lp.DocstrumLayoutModel(**config, verbose=verbose)
+            if config is not None
+            else lp.DocstrumLayoutModel(verbose=verbose)
+        )
+    elif method == "dotsocr":
+        if not check_connection():
+            print("For dots.ocr, first start the vLLM server before running this script.")
+            exit(1)
+        return (
+            lp.DotsOCRLayoutModel(**config)
+            if config is not None
+            else lp.DotsOCRLayoutModel()
+        )
+    elif method == "layoutlmv3":
+        raise NotImplementedError("LayoutLMv3 model is not yet implemented.")
+    elif method == "dit":
+        raise NotImplementedError("DiT model is not yet implemented.")
+    elif method == "doclayout-yolo":
+        return lp.DocLayoutYOLOLayoutModel(
+            "./data/model/doclayoutyolo/doclayout_yolo_docstructbench_imgsz1024.pt",
+            label_map="Glasana"
+        )
+    else:
+        raise ValueError(f"Unknown DLA method: {method}")
+
+
+def load_images_for_mode(mode, coco, file_path):
+    """Collect image paths, annotations, and image info based on the processing mode.
+
+    Args:
+        mode: "page" (single image), "pdf" (all pages of a PDF), or "corpus".
+        coco: COCO annotation object.
+        file_path: Path to the input image or PDF image folder.
+
+    Returns:
+        Tuple of (image_list, coco_anns_list, img_info_list).
+    """
+    image_list = []
+    coco_anns_list = []
+    img_info_list = []
+
+    if mode == "page":
+        filename = file_path.split("/")[-1]
+        for image_id, image_info in coco.imgs.items():
+            if image_info["file_name"] == filename:
+                coco_anns = load_coco_annotations(
+                    coco.loadAnns(coco.getAnnIds([image_id]))
+                )
+                image_list.append(file_path)
+                coco_anns_list.append(coco_anns)
+                img_info_list.append(image_info)
+                break
+
+    elif mode == "pdf":
+        pdf_name = file_path.split("/")[-1]
+        parent_dir = "/".join(file_path.split("/")[:-1])
+        for image_id, image_info in coco.imgs.items():
+            if pdf_name in image_info["file_name"]:
+                coco_anns = load_coco_annotations(
+                    coco.loadAnns(coco.getAnnIds([image_id]))
+                )
+                image_list.append(f"{parent_dir}/{image_info['file_name']}")
+                coco_anns_list.append(coco_anns)
+                img_info_list.append(image_info)
+
+    elif mode == "corpus":
+        # TODO: implement corpus-level processing
         pass
-    return False
+
+    return image_list, coco_anns_list, img_info_list
 
 
-# ======================================================================================================================
-# Run
-# ======================================================================================================================
+def build_save_path(save_arg, mode, image_path):
+    """Build the output JSON path for saving COCO annotations.
+
+    For 'page' mode, returns save_arg directly.
+    For 'pdf' mode, creates a subfolder structure: <save_arg>/<pdf_hash>/<page>.json
+    """
+    if mode == "page":
+        return save_arg
+
+    # Extract PDF hash and page number from the image filename
+    filename = image_path.split("/")[-1]
+    pdf_hash = filename.split("_")[0]
+    page_json = filename.split("_")[1].replace(".jpg", ".json")
+    return f"{save_arg}/{pdf_hash}/{page_json}"
+
+
+# ==============================================================================
+# Entry point
+# ==============================================================================
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Document layout analysis pipeline")
+    parser = argparse.ArgumentParser(description="Document layout analysis pipeline")
     parser.add_argument(
-        "-c",
-        "--config",
+        "-c", "--config",
         help="JSON configuration file path for the model",
         type=str,
-        required=False,
     )
     parser.add_argument(
-        "-dd",
-        "--display-detection",
-        help="Display image with detected bounding boxes if mode is single image",
+        "-dd", "--display-detection",
+        help="Display image with detected bounding boxes",
         action="store_true",
-        default=False,
     )
     parser.add_argument(
-        "-dg",
-        "--display-ground",
-        help="Display ground",
+        "-dg", "--display-ground",
+        help="Display ground-truth bounding boxes",
         action="store_true",
-        default=False,
     )
     parser.add_argument(
-        "-dm",
-        "--dla-method",
-        help="Method for Document Layout Analysis",
+        "-dm", "--dla-method",
+        help="DLA method: detectron2, docstrum, dotsocr, doclayout-yolo, layoutlmv3, dit",
         type=str,
         required=True,
     )
     parser.add_argument(
-        "-e",
-        "--evaluation_metric",
-        help="Evaluation metric for Document Layout Analysis",
+        "-e", "--evaluation-metric",
+        help="Evaluation metric: f1 or map",
         type=str,
-        required=False,
     )
     parser.add_argument(
-        "-f", "--file", help="Path to the input file", type=str, required=True
+        "-f", "--file",
+        help="Path to the input image or PDF image folder",
+        type=str,
+        required=True,
     )
     parser.add_argument(
-        "-m",
-        "--mode",
-        help="Detecting single image, whole PDF, or the whole corpus",
+        "-m", "--mode",
+        help="Processing mode: page (single image), pdf (whole PDF), or corpus",
         type=str,
         default="page",
     )
     parser.add_argument(
-        "-s",
-        "--save",
-        help="Save the COCO annotations for the detected layout in a JSON file.",
+        "-s", "--save",
+        help="Save COCO annotations to this JSON file path",
         type=str,
     )
     parser.add_argument(
-        "-si",
-        "--save-image",
-        help="Save the image with detected bounding boxes in a file.",
+        "-si", "--save-image",
+        help="Save the visualization image to a file",
         action="store_true",
-        default=False,
     )
     parser.add_argument(
-        "-v",
-        "--verbose",
-        help="Display more information about the procedure than you would normally",
+        "-v", "--verbose",
+        help="Enable verbose output",
         action="store_true",
-        default=False,
     )
 
     args = parser.parse_args()
 
     coco = COCO(COCO_ANNO_PATH)
     config = read_config(args.config)
+    show = args.display_detection or args.display_ground
 
-    show = False
+    # Initialize the DLA model
+    model = init_model(args.dla_method, config, verbose=args.verbose)
 
-    # For single image
-    image = None
-    coco_anns = None
-    img_info = None
-    # For PDF and corpus
-    image_list = []
-    coco_anns_list = []
-    img_info_list = []
-
-    if args.mode == "page":
-        for image_id, image_info in coco.imgs.items():
-            if image_info["file_name"] == args.image.split("/")[-1]:
-                coco_anns = load_coco_annotations(
-                    coco.loadAnns(coco.getAnnIds([image_id]))
-                )
-                img_info = image_info
-                break
-        show = args.display_detection or args.display_ground
-    elif args.mode == "pdf":
-        for image_id, image_info in coco.imgs.items():
-            if args.file.split("/")[-1] in image_info["file_name"]:
-                coco_anns = load_coco_annotations(
-                    coco.loadAnns(coco.getAnnIds([image_id]))
-                )
-                image_list.append(
-                    "/".join(args.file.split("/")[:-1]) + "/" + image_info["file_name"]
-                )
-                coco_anns_list.append(coco_anns)
-                img_info_list.append(image_info)
-        show = args.display_detection or args.display_ground
-    elif args.mode == "corpus":
-        coco.imgs.keys()
-
-    model = None
-    if args.dla_method == "detectron2":
-        model = lp.Detectron2LayoutModel(
-            "lp://PubLayNet/faster_rcnn_R_50_FPN_3x/config",
-            model_path="/home/luka/.torch/iopath_cache/s/dgy9c10wykk4lq4/model_final.pth",
-            # your local checkpoint
-            extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8],
-            label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
-        )
-    elif args.dla_method == "docstrum":
-        model = (
-            lp.DocstrumLayoutModel(**config, verbose=args.verbose)
-            if config is not None
-            else lp.DocstrumLayoutModel(verbose=args.verbose)
-        )
-        image = read_picture(args.file, to_rgb=False)
-        pass
-    elif args.dla_method == "dotsocr":
-        if not check_connection():
-            print(
-                "For dots.ocr, first start the vLLM server before running this script."
-            )
-            exit()
-
-        model = (
-            lp.DotsOCRLayoutModel(**config)
-            if config is not None
-            else lp.DotsOCRLayoutModel()
-        )
-    elif args.dla_method == "layoutlmv3":
-        # TODO: implement LayoutLMv3 model
-        # from layoutparser.src.layoutparser.models.layoutlmv3 import LayoutLMv3LayoutModel
-        # if config is None:
-        #    model = LayoutLMv3LayoutModel()
-        # else:
-        #    model = LayoutLMv3LayoutModel(**config)
-        raise Exception(f"LayoutLMv3 model is not yet implemented.")
-    elif args.dla_method == "dit":
-        # TODO: implement DiT model
-        # from layoutparser.dit import DiTLayoutModel
-        # if config is None:
-        #    model = DiTLayoutModel()
-        # else:
-        #    model = DiTLayoutModel(**config)
-        raise Exception(f"DiT model is not yet implemented.")
-    elif args.dla_method == "doclayout-yolo":
-        model = lp.DocLayoutYOLOLayoutModel(
-            "./data/model/doclayoutyolo/doclayout_yolo_docstructbench_imgsz1024.pt"
-        )
-    else:
-        raise Exception(f"Unknown DLA method: {args.dla_method}")
-
-    # Actually reading a picture
-    if image is None and args.dla_method == "detectron2":
-        image = read_picture(args.file)
-    # Just passing the path to the picture
-    else:
-        image = args.file
+    # Collect images and annotations for the chosen mode
+    image_list, coco_anns_list, img_info_list = load_images_for_mode(
+        args.mode, coco, args.file
+    )
 
     categories = coco.cats
 
-    if not coco_anns_list and not img_info_list:
-        coco_anns_list.append(coco_anns)
-        img_info_list.append(img_info)
+    # Process each image
+    for image_path, coco_anns, img_info in zip(image_list, coco_anns_list, img_info_list):
+        print(f"Processing image: {image_path}")
 
-    for image, coco_anns, img_info in zip(image_list, coco_anns_list, img_info_list):
-        print(f"Processing image: {image}")
-        with open(os.devnull, "w") as fnull:
-            with redirect_stdout(fnull):
-                # TODO: figure this out
-                pass
+        # Load the image: as numpy array for detectron2, as path for other models
+        if args.dla_method == "detectron2":
+            image = read_picture(image_path)
+        elif args.dla_method == "docstrum":
+            image = read_picture(image_path, to_rgb=False)
+        else:
+            image = image_path
 
         save_coco_path = (
-            args.save
-            if args.mode == "page"
-            else args.save
-            + "/"
-            + image.split("/")[-1].split("_")[0]
-            + "/"
-            + image.split("/")[-1].split("_")[1].replace(".jpg", ".json")
+            build_save_path(args.save, args.mode, image_path)
+            if args.save
+            else None
         )
+
         main(
             image,
             img_info,
             coco_anns,
             model,
-            (
-                args.evaluation_metric.lower()
-                if args.evaluation_metric is not None
-                else None
-            ),
-            categories,  # TODO: keep in mind that ground and detection categories might not be the same!
+            args.evaluation_metric.lower() if args.evaluation_metric else None,
+            categories,
             visualization=show,
             display_ground=args.display_ground,
-            display_img=cv2.imread(image),
+            display_img=cv2.imread(image_path),
             save_coco=save_coco_path,
             save_image=args.save_image,
         )
-
-"""
-Usage example:
-python main.py \
-    -m page \
-    -i "./annotation/pawls/labels/images/ef9c7b51ec7999b1173234cdb44b04a9710ddb645881722289c6a097efed921b_3.jpg" \
-    -v -dm detectron2
-"""

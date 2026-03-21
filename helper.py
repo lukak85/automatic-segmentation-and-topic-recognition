@@ -1,36 +1,53 @@
+"""Helper script for managing COCO annotations.
+
+Supports joining annotations from multiple files, removing duplicates,
+reordering images, stripping scores, and visualizing annotations.
+"""
+
 import argparse
-from utils.displayutils import *
+import json
+import os
+
+import cv2
 from pycocotools.coco import COCO
 
-import os
-import json
-
+from utils.displayutils import *
 from utils.fileutils import save_coco_to_json
 
-IMAGES_ROOT = "./annotation/pawls/labels/images/"
+IMAGES_ROOT = "./dataset/images/"
 STATUS_JSON = "annotation/pawls/skiff_files/apps/pawls/papers/status/development_user@example.com.json"
+
+# IoU threshold above which two annotations are considered duplicates
+DUPLICATE_IOU_THRESHOLD = 0.95
+
+
+# ==============================================================================
+# Annotation helpers
+# ==============================================================================
 
 
 def load_coco_annotations(annotations, categories=None):
+    """Convert COCO annotation dicts to a layoutparser Layout.
+
+    Args:
+        annotations: List of COCO annotation dicts.
+        categories: Optional COCO categories dict. If provided, resolves
+                    category IDs to human-readable names.
+    """
     layout = lp.Layout()
 
-    for ele in annotations:
-
-        x, y, w, h = ele["bbox"]
-
-        # if ele["score"] is None:
-        #    continue
-
+    for ann in annotations:
+        x, y, w, h = ann["bbox"]
         layout.append(
             lp.TextBlock(
                 block=lp.Rectangle(x, y, w + x, h + y),
                 type=(
-                    categories.get(ele["category_id"])["name"]
+                    categories[ann["category_id"]]["name"]
                     if categories
-                    else ele["category_id"]
+                    else ann["category_id"]
                 ),
-                id=ele["id"],
-                score=ele["score"] if "score" in ele else 1,
+                id=ann["id"],
+                score=ann.get("score", 1),
             )
         )
 
@@ -38,239 +55,240 @@ def load_coco_annotations(annotations, categories=None):
 
 
 def join_annotations(path):
-    # Read all annotations and join them into a single file
+    """Read all JSON annotation files in a folder and merge them.
+
+    Reassigns annotation IDs sequentially to avoid conflicts across files.
+    """
     coco_anns_list = []
     coco_imgs_list = []
     coco_cats = None
-
     annotation_id = 1
-    for file in os.listdir(path):
-        if file.endswith(".json"):
-            coco = COCO(os.path.join(path, file))
-            coco_anns = coco.loadAnns(coco.getAnnIds())
-            # Seat each annotation id anew to avoid conflicts
-            for ann in coco_anns:
-                ann["id"] = annotation_id
-                annotation_id += 1
-            coco_imgs = coco.loadImgs(coco.getImgIds())
-            coco_anns_list.extend(coco_anns)
-            coco_imgs_list.extend(coco_imgs)
-            if not coco_cats:
-                coco_cats = coco.cats
 
-    coco_full = {
+    for filename in os.listdir(path):
+        if not filename.endswith(".json"):
+            continue
+
+        coco = COCO(os.path.join(path, filename))
+        coco_anns = coco.loadAnns(coco.getAnnIds())
+
+        # Reassign annotation IDs to avoid collisions
+        for ann in coco_anns:
+            ann["id"] = annotation_id
+            annotation_id += 1
+
+        coco_anns_list.extend(coco_anns)
+        coco_imgs_list.extend(coco.loadImgs(coco.getImgIds()))
+
+        if coco_cats is None:
+            coco_cats = coco.cats
+
+    return {
         "images": coco_imgs_list,
         "annotations": coco_anns_list,
-        "categories": [],
+        "categories": [coco_cats[cid] for cid in coco_cats],
     }
 
-    for category_id in coco_cats:
-        coco_full["categories"].append(coco_cats[category_id])
 
-    return coco_full
+def remove_duplicates(coco, annotations_file):
+    """Remove near-duplicate annotations based on IoU overlap.
 
+    Two annotations on the same image with IoU > DUPLICATE_IOU_THRESHOLD are
+    considered duplicates. When both have scores, the higher-scoring one is kept.
 
-def remove_duplicates(coco):
+    Args:
+        coco: A loaded COCO object.
+        annotations_file: Path to the annotation file (used for validation).
+    """
     from pycocotools import mask as maskUtils
 
-    if not args.annotations_file:
-        print("Please provide an annotation file to remove duplicates from")
+    if not annotations_file:
+        print("Please provide an annotation file to remove duplicates from.")
         exit(1)
 
     coco_anns = coco.loadAnns(coco.getAnnIds())
-    coco_cats = coco.cats
 
-    # Create a map with image_id as key and list of annotations as value
-    image_id_to_anns = {}
+    # Group annotations by image
+    anns_by_image = {}
     for ann in coco_anns:
-        image_id = ann["image_id"]
-        if image_id not in image_id_to_anns:
-            image_id_to_anns[image_id] = []
-        image_id_to_anns[image_id].append(ann)
+        anns_by_image.setdefault(ann["image_id"], []).append(ann)
 
-    # For each image, remove duplicate annotations
-    unique_anns_all = []
-    for image_id in image_id_to_anns:
-        anns = image_id_to_anns[image_id]
-        unique_anns = []
+    # For each image, deduplicate by IoU
+    unique_anns = []
+    for image_id, anns in anns_by_image.items():
+        kept = []
         for ann in anns:
-            found_duplicate = False
-            if not unique_anns:
-                unique_anns.append(ann)
-            else:
-                for annCompare in unique_anns:
-                    if ann == annCompare:
-                        continue
+            is_duplicate = False
+            for existing in kept:
+                iou = maskUtils.iou([ann["bbox"]], [existing["bbox"]], [False])
+                if iou[0][0] > DUPLICATE_IOU_THRESHOLD:
+                    # Keep the annotation with the higher score
+                    if ann.get("score") is not None and ann["score"] > existing.get("score", 0):
+                        kept.remove(existing)
+                        kept.append(ann)
+                    is_duplicate = True
+                    break
+            if not is_duplicate:
+                kept.append(ann)
+        unique_anns.extend(kept)
 
-                    bbox1 = [
-                        ann["bbox"][0],
-                        ann["bbox"][1],
-                        ann["bbox"][2],
-                        ann["bbox"][3],
-                    ]
-                    bbox2 = [
-                        annCompare["bbox"][0],
-                        annCompare["bbox"][1],
-                        annCompare["bbox"][2],
-                        annCompare["bbox"][3],
-                    ]
-
-                    ious = maskUtils.iou([bbox1], [bbox2], [False])
-                    if ious[0][0] > 0.95:
-                        if (
-                            ann.get("score") is not None
-                            and ann["score"] > annCompare["score"]
-                        ):
-                            unique_anns.remove(annCompare)
-                            unique_anns.append(ann)
-                        found_duplicate = True
-                        break
-            if ann not in unique_anns and not found_duplicate:
-                unique_anns.append(ann)
-        unique_anns_all.extend(unique_anns)
-
-    coco_full = {
-        "images": [],
-        "annotations": unique_anns_all,
-        "categories": [],
+    return {
+        "images": [coco.imgs[img_id] for img_id in coco.imgs],
+        "annotations": unique_anns,
+        "categories": [coco.cats[cid] for cid in coco.cats],
     }
 
+
+def visualize_annotations(coco, image_id, save_path=None):
+    """Load and display annotations for a single image.
+
+    Args:
+        coco: A loaded COCO object.
+        image_id: The ID of the image to visualize.
+        save_path: Optional path to save the visualization.
+    """
+    img_info = coco.loadImgs(coco.getImgIds([int(image_id)]))[0]
+    img_path = os.path.join(IMAGES_ROOT, img_info["file_name"])
+    anns = coco.loadAnns(coco.getAnnIds([int(image_id)]))
+    layout = load_coco_annotations(anns, categories=coco.cats)
+    display_img = cv2.imread(img_path)
+    draw_layout(display_img, layout, save_path=save_path)
+
+
+def visualize_all_images(coco, save_path=None, skip_hashes=None):
+    """Visualize annotations for all images, optionally skipping some.
+
+    Args:
+        coco: A loaded COCO object.
+        save_path: Optional path to save the visualizations.
+        skip_hashes: Set of document hashes to skip.
+    """
     for image_id in coco.imgs:
-        coco_full["images"].append(coco.imgs[image_id])
+        img_info = coco.loadImgs(coco.getImgIds([int(image_id)]))[0]
+        doc_hash = img_info["file_name"].split("_")[0]
 
-    for category_id in coco_cats:
-        coco_full["categories"].append(coco_cats[category_id])
+        if skip_hashes and doc_hash in skip_hashes:
+            continue
 
-    return coco_full
+        print(f"Processing image {img_info['file_name']} with id {image_id}")
+        img_path = os.path.join(IMAGES_ROOT, img_info["file_name"])
+        anns = coco.loadAnns(coco.getAnnIds([int(image_id)]))
+        layout = load_coco_annotations(anns, categories=coco.cats)
+        display_img = cv2.imread(img_path)
+        draw_layout(display_img, layout, save_path=save_path)
 
 
-def map_ids_between_datasets(
-    coco,
-    from_dataset=None,
-    to_dataset=None,
-):
-    # This function is a placeholder for mapping category ids between two datasets if they have different category ids
-    # for the same categories
-    # For example, if dataset A has category id 1 for "Paragraph" and dataset B has category id 5 for "Paragraph", we
-    # can use this function to map category id 1 to 5 when joining annotations from both datasets
-    return coco_full
-
+# ==============================================================================
+# Entry point
+# ==============================================================================
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Document layout analysis helper")
+    parser = argparse.ArgumentParser(description="Document layout analysis helper")
 
     parser.add_argument(
-        "-a",
-        "--annotations-file",
-        help="Path to the annotation",
+        "-a", "--annotations-file",
+        help="Path to the COCO annotation file",
         type=str,
     )
     parser.add_argument(
-        "-i",
-        "--image-id",
-        help="Image id of the annotation to visualize",
+        "-i", "--image-id",
+        help="Image ID to visualize",
         type=str,
     )
     parser.add_argument(
-        "-m",
-        "--mode",
-        help="What kind of action we want to perform. Currently supported are: 'join-annotations'",
+        "-m", "--mode",
+        help="Action: join-annotations, prepare-annotations, order-images, "
+             "remove-scores, review-annotations, or visualize (default)",
         type=str,
-        default="page",
+        default="visualize",
     )
     parser.add_argument(
-        "-o",
-        "--output-path",
-        help="Path to the output file/folder",
+        "-o", "--output-path",
+        help="Output file path",
         type=str,
     )
     parser.add_argument(
-        "-p", "--path", help="Path to the input file/folder", type=str, required=False
+        "-p", "--path",
+        help="Input folder path (for join-annotations)",
+        type=str,
     )
     parser.add_argument(
-        "-r",
-        "--remove-duplicates",
-        help="Whether to remove duplicate annotations when joining, by comparing two annotations as duplicates if they"
-        "have IoU > 0.95",
+        "-r", "--remove-duplicates",
+        help="Remove duplicate annotations (IoU > 0.95) when joining",
         action="store_true",
     )
     parser.add_argument(
-        "-s",
-        "--save-visualization",
-        help="Where to save the visualization of the annotations. If not provided, it will be displayed but not saved",
+        "-s", "--save-visualization",
+        help="Path to save the annotation visualization",
         type=str,
     )
 
     args = parser.parse_args()
 
+    # ---- Mode dispatch ----
+
     if args.mode == "prepare-annotations":
         if not args.annotations_file:
-            print("Please provide an annotation file to prepare")
+            print("Please provide an annotation file to prepare.")
             exit(1)
 
-        coco = join_annotations(args.annotations_file)
-        output_json = str(os.path.join(args.annotations_file, args.output_path))
-        save_coco_to_json(coco, output_json)
+        # Join all annotations in the folder
+        coco_data = join_annotations(args.annotations_file)
+        output_json = os.path.join(args.annotations_file, args.output_path)
+        save_coco_to_json(coco_data, output_json)
 
+        # Remove duplicates
         coco = COCO(output_json)
-        coco = remove_duplicates(coco)
-        save_coco_to_json(coco, output_json)
+        coco_data = remove_duplicates(coco, args.annotations_file)
+        save_coco_to_json(coco_data, output_json)
 
+        # Visualize for review
         coco = COCO(output_json)
-        # Check and fix annotations
-        for image_id in coco.imgs:
-            img_path = coco.loadImgs(coco.getImgIds([int(image_id)]))[0]["file_name"]
-            print(f"Processing image {img_path} with id {image_id}")
-            img_path = os.path.join(IMAGES_ROOT, img_path)
-            anns = coco.loadAnns(coco.getAnnIds([int(image_id)]))
-            coco_anns = load_coco_annotations(anns, categories=coco.cats)
-            display_img = cv2.imread(img_path)
+        visualize_all_images(coco, save_path=args.save_visualization)
 
-            draw_layout(
-                display_img, coco_anns, save_path=args.save_visualization
-            )  # Drawing box for detection
     elif args.mode == "order-images":
         if not args.annotations_file:
-            print("Please provide an annotation file to prepare")
+            print("Please provide an annotation file.")
             exit(1)
-        coco = COCO(args.annotations_file)
 
+        coco = COCO(args.annotations_file)
         sorted_images = sorted(coco.dataset["images"], key=lambda x: x["id"])
-        with open(STATUS_JSON, "r") as file:
-            status_data = json.load(file)
-        filtered_images = unfinished_images = [
-            img
-            for img in sorted_images
+
+        # Filter to finished documents only
+        with open(STATUS_JSON, "r") as f:
+            status_data = json.load(f)
+        finished_images = [
+            img for img in sorted_images
             if status_data[img["file_name"].split("_")[0]]["finished"]
         ]
 
         sorted_annotations = sorted(
             coco.dataset["annotations"], key=lambda x: x["image_id"]
         )
+        save_coco_to_json(
+            {
+                "images": finished_images,
+                "annotations": sorted_annotations,
+                "categories": coco.dataset["categories"],
+            },
+            args.output_path,
+        )
 
-        coco_full = {
-            "images": sorted_images,
-            "annotations": sorted_annotations,
-            "categories": coco.dataset["categories"],
-        }
-
-        save_coco_to_json(coco_full, args.output_path)
     elif args.mode == "remove-scores":
         coco = COCO(args.annotations_file)
+        for ann in coco.dataset["annotations"]:
+            ann.pop("score", None)
+        save_coco_to_json(
+            {
+                "images": coco.dataset["images"],
+                "annotations": coco.dataset["annotations"],
+                "categories": coco.dataset["categories"],
+            },
+            args.output_path,
+        )
 
-        for d in coco.dataset["annotations"]:
-            d.pop("score", None)
-
-        coco_full = {
-            "images": coco.dataset["images"],
-            "annotations": coco.dataset["annotations"],
-            "categories": coco.dataset["categories"],
-        }
-
-        save_coco_to_json(coco_full, args.output_path)
     elif args.mode == "review-annotations":
-        # Just for me at the moment
-        already_checked = [
+        # Documents already reviewed — skip these when reviewing
+        already_checked = {
             "00de9bb518f39464b6b5bb7254d6fdd6e2e2e1fa46710ffe84a6863dca4be950",
             "0166d9b3f20fa5a4f6bd9d6d001f8b81b24665a6368dd0c10ed3d8a9e30dd691",
             "04bb9872050b5a73939ae9734a7a1f6935df7b6623f03dc407f3403d52392aa6",
@@ -281,9 +299,9 @@ if __name__ == "__main__":
             "20ecf1d1b0602973c2449ed90428bc31847ab613749ffc5d7ce92c5e05788f27",
             "230edb119aff067fecd3586eb3ce857f9ce402b0867037c156efaaaa32d0ba4b",
             "2a6e4009dac571c6d4e8b58009acd58a0c0ea1d859f21ac518cf82f2d52a5eda",
-            "326f6533357ab6e301abf9731667626678ccfa078497c866e12df4ff1f652e8f",  # TODO: join the annotations
-            "4289acbeebf1a459a5339c0f3ed89268ae9437541e5fcce8cd3fa1862517e19a",  # TODO: join the annotations
-            "53473f43fd47f257cab19acbf24ef1b1b7abe75b4cd643a2387cb10c6c4c44ea",  # TODO: join the annotations
+            "326f6533357ab6e301abf9731667626678ccfa078497c866e12df4ff1f652e8f",
+            "4289acbeebf1a459a5339c0f3ed89268ae9437541e5fcce8cd3fa1862517e19a",
+            "53473f43fd47f257cab19acbf24ef1b1b7abe75b4cd643a2387cb10c6c4c44ea",
             "7612369f2c0ac02697feb81598cf9069a94ea21637329c59bf3955ab731860c2",
             "7901803e4e1f43b71379ab2657057fc8545977dc4b5f6cbda225c965c4d1c849",
             "7c43f3e9c7b8ef76798616f47f26cb7e514b7d7216e2e934e366c5eb7266339d",
@@ -298,56 +316,34 @@ if __name__ == "__main__":
             "cd0c26aa8cad0a2c40e96abccad393a2f9a55742c651724081168c2425acd7a2",
             "d393c9ee0d6653bafac4c34990cffbc414f57ee1ae11a01669b0ae0b8fcdb97f",
             "ef01d9a74ff40330527608d5ff5434c22664a7a3f639949b281646ad6bfd28f5",
-            # "f5753bdada7c6202759859b13c320ce9830aea66fcd49e63721d2b3dca0c45bb",
-        ]
+            "f5753bdada7c6202759859b13c320ce9830aea66fcd49e63721d2b3dca0c45bb",
+        }
 
         coco = COCO(args.annotations_file)
-        # Check and fix annotations
-        for image_id in coco.imgs:
-            img_path = coco.loadImgs(coco.getImgIds([int(image_id)]))[0]["file_name"]
-            if img_path.split("_")[0] in already_checked:
-                continue
-            print(f"Processing image {img_path} with id {image_id}")
-            img_path = os.path.join(IMAGES_ROOT, img_path)
-            anns = coco.loadAnns(coco.getAnnIds([int(image_id)]))
-            coco_anns = load_coco_annotations(anns, categories=coco.cats)
-            display_img = cv2.imread(img_path)
+        visualize_all_images(
+            coco, save_path=args.save_visualization, skip_hashes=already_checked
+        )
 
-            draw_layout(
-                display_img, coco_anns, save_path=args.save_visualization
-            )  # Drawing box for detection
     elif args.mode == "join-annotations":
         if not args.path:
-            print("Please provide a folder path to join annotations")
+            print("Please provide a folder path to join annotations.")
             exit(1)
+        coco_data = join_annotations(args.path)
+        save_coco_to_json(coco_data, args.output_path)
 
-        coco = join_annotations(args.path)
-
-        save_coco_to_json(coco, args.output_path)
     elif args.remove_duplicates:
         coco = COCO(args.annotations_file)
-        coco_full = remove_duplicates(coco)
+        coco_data = remove_duplicates(coco, args.annotations_file)
+        save_coco_to_json(coco_data, args.output_path)
 
-        save_coco_to_json(coco_full, args.output_path)
     else:
+        # Default: visualize a single image's annotations
         if not args.annotations_file:
-            print("Please provide an annotation file to visualize")
+            print("Please provide an annotation file to visualize.")
             exit(1)
         if not args.image_id:
-            print("Please provide an image id to visualize")
+            print("Please provide an image ID to visualize.")
             exit(1)
 
-        print(args.annotations_file)
         coco = COCO(args.annotations_file)
-
-        img_path = coco.loadImgs(coco.getImgIds([int(args.image_id)]))[0]["file_name"]
-        img_path = os.path.join(IMAGES_ROOT, img_path)
-        anns = coco.loadAnns(coco.getAnnIds([int(args.image_id)]))
-        coco_anns = load_coco_annotations(anns, categories=coco.cats)
-        display_img = cv2.imread(img_path)
-
-        # Convert all anns to names
-
-        draw_layout(
-            display_img, coco_anns, save_path=args.save_visualization
-        )  # Drawing box for detection
+        visualize_annotations(coco, args.image_id, save_path=args.save_visualization)

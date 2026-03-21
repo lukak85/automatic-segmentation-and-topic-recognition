@@ -1,9 +1,12 @@
-from collections import Counter
-import string
+"""Evaluation metrics for document layout analysis."""
+
 import re
+import string
 import sys
 import unicodedata
+from collections import Counter
 
+# All Unicode punctuation characters plus standard ASCII punctuation
 PUNCT = {
     chr(i)
     for i in range(sys.maxunicode)
@@ -11,92 +14,72 @@ PUNCT = {
 }.union(string.punctuation)
 
 
-def whitespace_tokenize(text):
-    return text.split()
+def normalize_answer(text):
+    """Normalize text for comparison: lowercase, strip articles, punctuation, extra whitespace."""
+
+    def remove_articles(s):
+        return re.sub(r"\b(a|an|the)\b", " ", s)
+
+    def remove_punctuation(s):
+        return "".join(ch for ch in s if ch not in PUNCT)
+
+    def collapse_whitespace(s):
+        return " ".join(token for token in s.split() if token.strip())
+
+    return collapse_whitespace(remove_articles(remove_punctuation(text.lower())))
 
 
-def normalize_answer(s):
-    def remove_articles(text):
-        return re.sub(r"\b(a|an|the)\b", " ", text)
+def f1_score(prediction, ground_truth):
+    """Compute token-level F1 score between two text strings.
 
-    def white_space_fix(text):
-        tokens = whitespace_tokenize(text)
-        return " ".join([t for t in tokens if t.strip() != ""])
-
-    def remove_punc(text):
-        return "".join(ch for ch in text if ch not in PUNCT)
-
-    def lower(text):
-        return text.lower()
-
-    return white_space_fix(remove_articles(remove_punc(lower(s))))
-
-
-def f1_score(
-    prediction, ground_truth
-):  # Taken largely from evaluate_mlqa.py in unilm folder
-    prediction_tokens = normalize_answer(prediction).split()
-    ground_truth_tokens = normalize_answer(ground_truth).split()
-    common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
+    Based on the evaluation approach from evaluate_mlqa.py (UniLM).
+    """
+    pred_tokens = normalize_answer(prediction).split()
+    truth_tokens = normalize_answer(ground_truth).split()
+    common = Counter(pred_tokens) & Counter(truth_tokens)
     num_same = sum(common.values())
+
     if num_same == 0:
         return 0
-    precision = 1.0 * num_same / len(prediction_tokens)
-    recall = 1.0 * num_same / len(ground_truth_tokens)
-    f1 = (2 * precision * recall) / (precision + recall)
-    return f1
+
+    precision = num_same / len(pred_tokens)
+    recall = num_same / len(truth_tokens)
+    return (2 * precision * recall) / (precision + recall)
 
 
 def mean_average_precision(predictions, ground_truths):
+    """Compute mean average precision (mAP) for bounding box detections.
+
+    Args:
+        predictions: List of layout elements with .block attributes (x_1, y_1, width, height).
+        ground_truths: List of ground-truth layout elements with .block attributes.
+
+    Returns:
+        Dict of mAP metrics from torchmetrics.
+    """
     import torch
     from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
-    predictions_coco = []
-    targets_coco = []
-
-    for prediction in predictions:
-        x, y, w, h = (
-            prediction.block.x_1,
-            prediction.block.y_1,
-            prediction.block.width,
-            prediction.block.height,
-        )
-
-        predictions_coco.append([x, y, w, h])
-
-    predictions = [
-        {
-            "boxes": torch.tensor(predictions_coco, dtype=torch.float32),
-            "scores": torch.tensor(
-                [1.0] * len(predictions_coco)
-            ),  # Assuming a confidence score of 1.0 for all predictions
-            "labels": torch.tensor(
-                [1] * len(predictions_coco)
-            ),  # Assuming a single class label for all predictions
-        }
+    pred_boxes = [
+        [p.block.x_1, p.block.y_1, p.block.width, p.block.height]
+        for p in predictions
+    ]
+    target_boxes = [
+        [t.block.x_1, t.block.y_1, t.block.width, t.block.height]
+        for t in ground_truths
     ]
 
-    for target in ground_truths:
-        x, y, w, h = (
-            target.block.x_1,
-            target.block.y_1,
-            target.block.width,
-            target.block.height,
-        )
-
-        targets_coco.append([x, y, w, h])
-
-    targets = [
-        {
-            "boxes": torch.tensor(targets_coco, dtype=torch.float32),
-            "labels": torch.tensor(
-                [1] * len(targets_coco)
-            ),  # Assuming a single class label for all targets
-        }
-    ]
+    # Wrap in single-image format expected by torchmetrics
+    preds = [{
+        "boxes": torch.tensor(pred_boxes, dtype=torch.float32),
+        "scores": torch.ones(len(pred_boxes)),
+        "labels": torch.ones(len(pred_boxes), dtype=torch.long),
+    }]
+    targets = [{
+        "boxes": torch.tensor(target_boxes, dtype=torch.float32),
+        "labels": torch.ones(len(target_boxes), dtype=torch.long),
+    }]
 
     metric = MeanAveragePrecision(iou_type="bbox")
-
-    metric.update(predictions, targets)
-    result = metric.compute()
-    return result
+    metric.update(preds, targets)
+    return metric.compute()

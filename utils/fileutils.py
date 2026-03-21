@@ -1,22 +1,29 @@
+"""File I/O utilities for configuration and COCO annotation files."""
+
+import json
+from pathlib import Path
+
+
 def read_config(config_path):
-    import json
+    """Load a JSON configuration file.
 
-    config = None
-    if config_path is not None:
-        with open(config_path, "r") as config_file:
-            config = json.load(config_file)
+    Args:
+        config_path: Path to the JSON file, or None.
 
-    return config
+    Returns:
+        Parsed config dict, or None if config_path is None.
+    """
+    if config_path is None:
+        return None
+    with open(config_path, "r") as f:
+        return json.load(f)
 
 
 def save_coco_to_json(coco_data, output_path):
-    import json
+    """Save COCO-format annotation data to a JSON file.
 
-    # Ensure the output directory exists
-    from pathlib import Path
-
-    file_path = Path(output_path)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(output_path, "w") as json_file:
-        json.dump(coco_data, json_file, indent=4)
+    Creates parent directories if they don't exist.
+    """
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w") as f:
+        json.dump(coco_data, f, indent=4)
