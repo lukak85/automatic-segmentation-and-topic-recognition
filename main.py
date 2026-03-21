@@ -2,16 +2,14 @@ import argparse
 
 from pycocotools.coco import COCO
 
+from config import COCO_ANNO_PATH, WEIGHTS_PATH
 from utils.conversionutils import *
 from utils.displayutils import *
 from utils.evalutils import *
 from utils.fileutils import *
 
-# Path to the ground-truth COCO annotations file
-COCO_ANNO_PATH = "dataset/annotations.json"
-WEIGHTS_PATH = "/"
 
-# ==============================================================================
+# ======================================================================================================================
 # Main function
 # ==============================================================================
 
