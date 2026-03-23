@@ -7,23 +7,24 @@ extension a corpus). The pipeline outputs annotations in COCO format.
 
 ## Supported Models
 
-| Model              | Type                        | Description                                                                | Repository                                                                       |
-|--------------------|-----------------------------|----------------------------------------------------------------------------|----------------------------------------------------------------------------------|
-| **Docstrum**       | Bottom-up                   | Line-based document structure analysis                                     | **[chulwoopack/docstrum](https://github.com/chulwoopack/docstrum)**              |
-| **LayoutLMv3**     | Multimodal                  | Jointly encodes text, layout, and image patches for document understanding | **[microsoft/unilm](https://github.com/microsoft/unilm/tree/master/layoutlmv3)** |
-| **DiT**            | Document Image Transformers | Document image transformer pre-trained via masked image modeling           | **[microsoft/unilm](https://github.com/microsoft/unilm/tree/master/dit)**        |
-| **DocLayout-YOLO** | Object detection            | YOLOv10-based model for document structure                                 | **[opendatalab/DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO)**  |
-| **DotsOCR**        | Vision-language             | Layout detection + OCR via vLLM server                                     | **[rednote-hilab/dots.ocr](https://github.com/rednote-hilab/dots.ocr)**          |
+| Model              | Type                        | Description                                                                                 | Repository                                                                                                                                        |
+|--------------------|-----------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Docstrum**       | Bottom-up                   | Line-based document structure analysis                                                      | **[chulwoopack/docstrum](https://github.com/chulwoopack/docstrum)**                                                                               |
+| **LayoutLMv3**     | Multimodal                  | Jointly encodes text, layout, and image patches for document understanding                  | **[microsoft/unilm](https://github.com/microsoft/unilm/tree/master/layoutlmv3)**                                                                  |
+| **DiT**            | Document Image Transformers | Document image transformer pre-trained via masked image modeling                            | **[microsoft/unilm](https://github.com/microsoft/unilm/tree/master/dit)**                                                                         |
+| **DocLayout-YOLO** | Object detection            | YOLOv10-based model for document structure                                                  | **[opendatalab/DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO)**                                                                   |
+| **DotsOCR**        | Vision-language             | Layout detection + OCR via vLLM server                                                      | **[rednote-hilab/dots.ocr](https://github.com/rednote-hilab/dots.ocr)**                                                                           |
+| **Nemotron**       | Vision-language             | Nemotron Page Elements v3 built on top of YOLOX                                             | **[nvidia/nemotron-page-elements-v3](https://huggingface.co/nvidia/nemotron-page-elements-v3)**                                                   |
+| **VGT**            | Multimodal                  | Vision grid transformer pretrained on MGLM and SLM and segment-level semantic understanding | **[AlibabaResearch/AdvancedLiterateMachinery](https://github.com/AlibabaResearch/AdvancedLiterateMachinery/tree/main/DocumentUnderstanding/VGT)** |
 
 <details>
 <summary><b>Work in Progress and Planned Models</b></summary>
 
 ### Work in Progress Models
 
-| Model        | Type            | Description | Repository                                                                                                                                        |
-|--------------|-----------------|-------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Nemotron** | Vision-language | TODO        | **[nvidia/nemotron-page-elements-v3](https://huggingface.co/nvidia/nemotron-page-elements-v3)**                                                   |
-| **VGT**      | Multimodal      | TODO        | **[AlibabaResearch/AdvancedLiterateMachinery](https://github.com/AlibabaResearch/AdvancedLiterateMachinery/tree/main/DocumentUnderstanding/VGT)** |
+| Model      | Type | Description | Repository                                                      |
+|------------|------|-------------|-----------------------------------------------------------------|
+| **MinerU** | TODO | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)** |
 
 ### Planned Models
 
@@ -31,7 +32,7 @@ extension a corpus). The pipeline outputs annotations in COCO format.
 |---------------------|-------------------|-------------|-------------------------------------------------------------------|
 | **Faster R-CNN**    | CNN-Based         | TODO        | TODO                                                              |
 | **Mask R-CNN**      | CNN-Based         | TODO        | TODO                                                              |
-| **MinerU**          | TODO              | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**   |
+
 | **DLAFormer**       | TODO              | TODO        | No public repository available                                    |
 | **Paragraph2Graph** | TODO              | TODO        | **[NormXU/Layout2Graph](https://github.com/NormXU/Layout2Graph)** |
 | **DINO**            | Transformer-Based | TODO        | **[IDEA-Research/DINO](https://github.com/IDEA-Research/DINO)**   |
