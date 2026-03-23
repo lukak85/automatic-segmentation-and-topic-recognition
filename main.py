@@ -179,9 +179,17 @@ def init_model(method, config, verbose=False):
             label_map="Glasana"
         )
     elif method == "vgt":
-        raise NotImplementedError(f"VGT model is not yet implemented.")
+        return (
+            lp.VGTLayoutModel(**config)
+            if config is not None
+            else lp.VGTLayoutModel(WEIGHTS_PATH + "/vgt/D4LA_VGT_model.pth", grid_root="./data/vgt/grid/")
+        )
     elif args.dla_method == "nemotron":
-        raise NotImplementedError(f"Nemotron model is not yet implemented.")
+        return (
+            lp.NemotronLayoutModel(**config)
+            if config is not None
+            else lp.NemotronLayoutModel()
+        )
     else:
         raise ValueError(f"Unknown DLA method: {method}")
 

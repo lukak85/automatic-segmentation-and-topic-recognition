@@ -151,7 +151,9 @@ automatic-segmentation-and-topic-recognition/
 │       ├── doclayout_yolo/  # DocLayout-YOLO model
 │       ├── docstrum/        # Docstrum algorithm
 │       ├── dotsocr/         # DotsOCR vision-language model
-│       └── layoutlmv3/      # LayoutLMv3 model
+│       ├── layoutlmv3/      # LayoutLMv3 model
+│       ├── nemotron/        # Nemotron vision-language model
+│       └── vgt/             # VGT model
 └── annotation/              # Ground-truth COCO annotations
     └── images/              # Document images
 ```
@@ -171,6 +173,13 @@ No model weights needed — Docstrum is a classical algorithm based on nearest-n
 The models use detectron2 as a detection backbone. For installation, follow these instructions:
 - [LayoutLMv3](https://github.com/microsoft/unilm/tree/master/layoutlmv3#installation)
 - [DiT](https://github.com/microsoft/unilm/tree/master/layoutlmv3#installation)
+
+### VGT
+
+The instructions for environment creation are presented in [VGT repository](https://github.com/AlibabaResearch/AdvancedLiterateMachinery/tree/main/DocumentUnderstanding/VGT#install-requirements).
+The model requires each input image to have a `pkl` file containing the grid information neccessary for Grid Transformer. The
+process of creating such files are presented in the section [Generating grid information](https://github.com/AlibabaResearch/AdvancedLiterateMachinery/tree/main/DocumentUnderstanding/VGT#generating-grid-information).
+The path of those files should then be passed to the layout-parser VGT implementation.
 
 ### DocLayout-YOLO
 
