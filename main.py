@@ -116,7 +116,7 @@ def load_coco_annotations(annotations, coco=None):
     return layout
 
 
-def check_connection(address="localhost", port=8080, timeout=5):
+def check_connection(address="localhost", port=8000, timeout=5):
     """Check whether a TCP connection can be established (e.g. for vLLM server)."""
     import socket
 
