@@ -58,26 +58,34 @@ def mean_average_precision(predictions, ground_truths):
         Dict of mAP metrics from torchmetrics.
     """
     import torch
+    from torchvision.ops import box_convert
     from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
-    pred_boxes = [
-        [p.block.x_1, p.block.y_1, p.block.width, p.block.height]
-        for p in predictions
-    ]
     target_boxes = [
         [t.block.x_1, t.block.y_1, t.block.width, t.block.height]
         for t in ground_truths
     ]
 
+    pred_boxes = [
+        [p.block.x_1, p.block.y_1, p.block.width, p.block.height]
+        for p in predictions
+    ]
+
+    t_boxes = torch.tensor(target_boxes, dtype=torch.float32)
+    p_boxes = torch.tensor(pred_boxes, dtype=torch.float32)
+
+    t_boxes_xyxy = box_convert(t_boxes, in_fmt='xywh', out_fmt='xyxy')
+    p_boxes_xyxy = box_convert(p_boxes, in_fmt='xywh', out_fmt='xyxy')
+
     # Wrap in single-image format expected by torchmetrics
     preds = [{
-        "boxes": torch.tensor(pred_boxes, dtype=torch.float32),
-        "scores": torch.ones(len(pred_boxes)),
-        "labels": torch.ones(len(pred_boxes), dtype=torch.long),
+        "boxes": torch.tensor(p_boxes_xyxy, dtype=torch.float32),
+        "scores": torch.ones(len(p_boxes_xyxy)),
+        "labels": torch.ones(len(p_boxes_xyxy), dtype=torch.long),
     }]
     targets = [{
-        "boxes": torch.tensor(target_boxes, dtype=torch.float32),
-        "labels": torch.ones(len(target_boxes), dtype=torch.long),
+        "boxes": torch.tensor(t_boxes_xyxy, dtype=torch.float32),
+        "labels": torch.ones(len(t_boxes_xyxy), dtype=torch.long),
     }]
 
     metric = MeanAveragePrecision(iou_type="bbox")

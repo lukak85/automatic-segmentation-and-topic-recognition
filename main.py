@@ -59,7 +59,11 @@ def main(
         if evaluation_metric == "f1":
             print(f1_score(layout, ground_truth))
         else:
-            print(mean_average_precision(layout, ground_truth))
+            metrics = mean_average_precision(layout, ground_truth)
+            map_score = metrics['map'].item()  # mAP@0.50:0.95 (primary metric)
+            map_50 = metrics['map_50'].item()  # mAP@IoU=0.50
+            map_75 = metrics['map_75'].item()  # mAP@IoU=0.75
+            print(map_score, map_50, map_75)
 
     # Save detections in COCO format
     if save_coco is not None:
