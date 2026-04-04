@@ -1,4 +1,32 @@
 import argparse
+import os
+import sys
+
+# Map CLI method names to LAYOUTPARSER_BACKEND values.
+_METHOD_TO_BACKEND = {
+    "detectron2": "detectron2",
+    "docstrum": "docstrum",
+    "dotsocr": "dotsocr",
+    "doclayout-yolo": "doclayout_yolo",
+    "layoutlmv3": "layoutlmv3",
+    "dit": "dit",
+    "vgt": "vgt",
+    "nemotron": "nemotron",
+}
+
+
+def _set_backend_from_args():
+    """Parse --dla-method early and set LAYOUTPARSER_BACKEND before imports."""
+    for i, arg in enumerate(sys.argv):
+        if arg in ("-dm", "--dla-method") and i + 1 < len(sys.argv):
+            method = sys.argv[i + 1]
+            backend = _METHOD_TO_BACKEND.get(method)
+            if backend:
+                os.environ["LAYOUTPARSER_BACKEND"] = backend
+            return
+
+
+_set_backend_from_args()
 
 from pycocotools.coco import COCO
 
