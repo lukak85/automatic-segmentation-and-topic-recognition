@@ -208,9 +208,13 @@ def init_model(method, config, verbose=False):
             else lp.DiTLayoutModel(WEIGHTS_PATH + "/dit/publaynet_dit-b_cascade.pth")
         )
     elif method == "doclayout-yolo":
-        return lp.DocLayoutYOLOLayoutModel(
-            "./data/model/doclayoutyolo/doclayout_yolo_docstructbench_imgsz1024.pt",
-            label_map="Glasana"
+        return (
+            lp.DocLayoutYOLOLayoutModel(**config)
+            if config is not None
+            else lp.DocLayoutYOLOLayoutModel(
+                "./data/model/doclayoutyolo/doclayout_yolo_docstructbench_imgsz1024.pt",
+                label_map="Glasana"
+            )
         )
     elif method == "vgt":
         return (
@@ -385,7 +389,7 @@ if __name__ == "__main__":
         # Load the image: as numpy array for detectron2, as path for other models
         if args.dla_method == "detectron2":
             image = read_picture(image_path)
-        elif args.dla_method in ("docstrum", "recursive-xycut", "rlsa"):
+        elif args.dla_method in ("docstrum", "rlsa"):
             image = read_picture(image_path, to_rgb=False)
         else:
             image = image_path
@@ -405,7 +409,7 @@ if __name__ == "__main__":
             categories,
             visualization=show,
             display_ground=args.display_ground,
-            display_img=image if args.dla_method in  ("docstrum", "recursive-xycut", "rlsa") else cv2.imread(image),
+            display_img=image if args.dla_method in  ("docstrum", "rlsa") else cv2.imread(image),
             save_coco=save_coco_path,
             save_image_path=args.save_image_path,
         )

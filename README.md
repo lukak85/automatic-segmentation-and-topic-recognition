@@ -22,17 +22,20 @@ extension a corpus). The pipeline outputs annotations in COCO format.
 
 ### Work in Progress Models
 
-| Model              | Type                  | Description | Repository                                                                                                       |
-|--------------------|-----------------------|-------------|------------------------------------------------------------------------------------------------------------------|
-| **PP-DocLayout-L** | TODO                  | TODO        | **[PaddlePaddle/PP-DocLayout-L](https://huggingface.co/PaddlePaddle/PP-DocLayout-L)**                            |
-| **RF-DETR**        | TODO                  | TODO        | **[neka-nat/rfdetr-doclayout-L](https://huggingface.co/neka-nat/rfdetr-doclayout)**                              |
-| **DETR**           | TODO                  | TODO        | **[neka-nat/rfdetr-doclayout-L](https://huggingface.co/cmarkea/detr-layout-detection)**                          |
-| **DINO**           | Transformer-Based     | TODO        | **[IDEA-Research/DINO](https://github.com/IDEA-Research/DINO)**                                                  |
-| **VSR**            | TODO                  | TODO        | **[hikopensource/DAVAR-Lab-OCR](https://github.com/hikopensource/DAVAR-Lab-OCR/tree/main/demo/text_layout/VSR)** |
-| **M2Doc**          | Multimodal            | TODO        | **[johnning2333/M2Doc](https://github.com/johnning2333/M2Doc)**                                                  |
-| **MinerU**         | Vision language model | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**                                                  |
-| **Docling**        | Vision language model | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**                                                  |
-| **PaddleOCR**      | TODO                  | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**                                                  |
+| Model                | Type                  | Description | Repository                                                                                                       |
+|----------------------|-----------------------|-------------|------------------------------------------------------------------------------------------------------------------|
+| **MinerU**           | Vision language model | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**                                                  |
+| **Docling**          | Vision language model | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**                                                  |
+| **PaddleOCR**        | TODO                  | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**                                                  |
+| **Recursive-XY-cut** | TODO                  | TODO        | **[Ehsan1997/Recursive-XY-cut-Python](https://github.com/Ehsan1997/Recursive-XY-cut-Python)**                    |
+| **RLSA**             | TODO                  | TODO        | **[Vasistareddy/pythonRLSA](https://github.com/Vasistareddy/pythonRLSA)**                                        |
+| **PP-DocLayout-L**   | TODO                  | TODO        | **[PaddlePaddle/PP-DocLayout-L](https://huggingface.co/PaddlePaddle/PP-DocLayout-L)**                            |
+| **RF-DETR**          | TODO                  | TODO        | **[neka-nat/rfdetr-doclayout-L](https://huggingface.co/neka-nat/rfdetr-doclayout)**                              |
+| **DETR**             | TODO                  | TODO        | **[neka-nat/rfdetr-doclayout-L](https://huggingface.co/cmarkea/detr-layout-detection)**                          |
+| **DINO**             | Transformer-Based     | TODO        | **[IDEA-Research/DINO](https://github.com/IDEA-Research/DINO)**                                                  |
+| **VSR**              | TODO                  | TODO        | **[hikopensource/DAVAR-Lab-OCR](https://github.com/hikopensource/DAVAR-Lab-OCR/tree/main/demo/text_layout/VSR)** |
+| **M2Doc**            | Multimodal            | TODO        | **[johnning2333/M2Doc](https://github.com/johnning2333/M2Doc)**                                                  |
+| **DeepSeek-OCR**     | TODO                  | TODO        | **[deepseek-ai/DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)**                                      |
 
 ### Planned Models
 
