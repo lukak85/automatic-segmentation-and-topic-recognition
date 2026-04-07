@@ -12,6 +12,8 @@ _METHOD_TO_BACKEND = {
     "dit": "dit",
     "vgt": "vgt",
     "nemotron": "nemotron",
+    "recursive-xycut": "recursive_xycut",
+    "rlsa": "rlsa",
 }
 
 
@@ -216,11 +218,23 @@ def init_model(method, config, verbose=False):
             if config is not None
             else lp.VGTLayoutModel(WEIGHTS_PATH + "/vgt/D4LA_VGT_model.pth", grid_root="./data/vgt/grid/")
         )
-    elif args.dla_method == "nemotron":
+    elif method == "nemotron":
         return (
             lp.NemotronLayoutModel(**config)
             if config is not None
             else lp.NemotronLayoutModel()
+        )
+    elif method == "recursive-xycut":
+        return (
+            lp.RecursiveXYCutLayoutModel(**config)
+            if config is not None
+            else lp.RecursiveXYCutLayoutModel()
+        )
+    elif method == "rlsa":
+        return (
+            lp.RLSALayoutModel(**config)
+            if config is not None
+            else lp.RLSALayoutModel()
         )
     else:
         raise ValueError(f"Unknown DLA method: {method}")
@@ -371,7 +385,7 @@ if __name__ == "__main__":
         # Load the image: as numpy array for detectron2, as path for other models
         if args.dla_method == "detectron2":
             image = read_picture(image_path)
-        elif args.dla_method == "docstrum":
+        elif args.dla_method in ("docstrum", "recursive-xycut", "rlsa"):
             image = read_picture(image_path, to_rgb=False)
         else:
             image = image_path
@@ -391,7 +405,7 @@ if __name__ == "__main__":
             categories,
             visualization=show,
             display_ground=args.display_ground,
-            display_img=cv2.imread(image),
+            display_img=image if args.dla_method in  ("docstrum", "recursive-xycut", "rlsa") else cv2.imread(image),
             save_coco=save_coco_path,
             save_image_path=args.save_image_path,
         )

@@ -22,10 +22,17 @@ extension a corpus). The pipeline outputs annotations in COCO format.
 
 ### Work in Progress Models
 
-| Model      | Type | Description | Repository                                                                                                       |
-|------------|------|-------------|------------------------------------------------------------------------------------------------------------------|
-| **MinerU** | TODO | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**                                                  |
-| **VSR**    | TODO | TODO        | **[hikopensource/DAVAR-Lab-OCR](https://github.com/hikopensource/DAVAR-Lab-OCR/tree/main/demo/text_layout/VSR)** |
+| Model              | Type                  | Description | Repository                                                                                                       |
+|--------------------|-----------------------|-------------|------------------------------------------------------------------------------------------------------------------|
+| **PP-DocLayout-L** | TODO                  | TODO        | **[PaddlePaddle/PP-DocLayout-L](https://huggingface.co/PaddlePaddle/PP-DocLayout-L)**                            |
+| **RF-DETR**        | TODO                  | TODO        | **[neka-nat/rfdetr-doclayout-L](https://huggingface.co/neka-nat/rfdetr-doclayout)**                              |
+| **DETR**           | TODO                  | TODO        | **[neka-nat/rfdetr-doclayout-L](https://huggingface.co/cmarkea/detr-layout-detection)**                          |
+| **DINO**           | Transformer-Based     | TODO        | **[IDEA-Research/DINO](https://github.com/IDEA-Research/DINO)**                                                  |
+| **VSR**            | TODO                  | TODO        | **[hikopensource/DAVAR-Lab-OCR](https://github.com/hikopensource/DAVAR-Lab-OCR/tree/main/demo/text_layout/VSR)** |
+| **M2Doc**          | Multimodal            | TODO        | **[johnning2333/M2Doc](https://github.com/johnning2333/M2Doc)**                                                  |
+| **MinerU**         | Vision language model | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**                                                  |
+| **Docling**        | Vision language model | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**                                                  |
+| **PaddleOCR**      | TODO                  | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**                                                  |
 
 ### Planned Models
 
@@ -35,8 +42,6 @@ extension a corpus). The pipeline outputs annotations in COCO format.
 | **Mask R-CNN**      | CNN-Based         | TODO        | TODO                                                              |
 | **Doc-GCN**         | TODO              | TODO        | **[adlnlp/doc_gcn](https://github.com/adlnlp/doc_gcn)**           |
 | **Paragraph2Graph** | TODO              | TODO        | **[NormXU/Layout2Graph](https://github.com/NormXU/Layout2Graph)** |
-| **DINO**            | Transformer-Based | TODO        | **[IDEA-Research/DINO](https://github.com/IDEA-Research/DINO)**   |
-| **M2Doc**           | Multimodal        | TODO        | **[johnning2333/M2Doc](https://github.com/johnning2333/M2Doc)**   |
 | **DLAFormer**       | TODO              | TODO        | No public repository available                                    |
 </details>
 
