@@ -121,6 +121,7 @@ python helper.py -m <mode> [options]
 - `order-images` — Sort images and annotations by ID
 - `remove-scores` — Strip confidence scores from annotations
 - `review-annotations` — Visualize all annotations for review
+- `count-annotations` — Print per-category annotation counts and percentages
 
 **Examples:**
 
@@ -143,6 +144,12 @@ Visualize annotations for a specific image:
 python helper.py \
   -a ./results/merged.json \
   -i 2028
+```
+
+Count annotations by category:
+```bash
+python helper.py -m count-annotations \
+  -a ./results/merged.json
 ```
 
 ## Project Structure
