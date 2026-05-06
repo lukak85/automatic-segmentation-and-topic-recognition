@@ -8,7 +8,7 @@ from pycocotools.coco import COCO
 from utils.displayutils import *
 from utils.fileutils import save_coco_to_json, read_json
 
-IMAGES_ROOT = "./dataset/images/"
+IMAGES_ROOT = "annotation/pawls/labels/images/"
 STATUS_JSON = "annotation/pawls/skiff_files/apps/pawls/papers/status/development_user@example.com.json"
 
 # IoU threshold above which two annotations are considered duplicates
@@ -132,12 +132,13 @@ def remove_duplicates(coco, annotations_file):
     }
 
 
-def visualize_annotations(coco, image_id, save_path=None):
+def visualize_annotations(coco, image_id, connections=None, save_path=None):
     """Load and display annotations for a single image.
 
     Args:
         coco: A loaded COCO object.
         image_id: The ID of the image to visualize.
+        connections: A loaded JSON object containing connections between regions.
         save_path: Optional path to save the visualization.
     """
     img_info = coco.loadImgs(coco.getImgIds([int(image_id)]))[0]
@@ -145,7 +146,11 @@ def visualize_annotations(coco, image_id, save_path=None):
     anns = coco.loadAnns(coco.getAnnIds([int(image_id)]))
     layout = load_coco_annotations(anns, categories=coco.cats)
     display_img = cv2.imread(img_path)
-    draw_layout(display_img, layout, save_path=save_path)
+    id_map, tgt_index = build_id_map(anns, connections, img_info["file_name"], (img_info["width"], img_info["height"]))
+    coco_id_order = [id_map[i] for i in tgt_index if i in id_map]
+    index_map = {id_: i for i, id_ in enumerate(sorted(coco_id_order))}
+    positions = [index_map[id_] for id_ in coco_id_order]
+    draw_layout(display_img, layout, order=tgt_index, save_path=save_path)
 
 
 def visualize_all_images(coco, save_path=None, skip_hashes=None):
@@ -170,6 +175,40 @@ def visualize_all_images(coco, save_path=None, skip_hashes=None):
         display_img = cv2.imread(img_path)
         draw_layout(display_img, layout, save_path=save_path)
 
+def iou(b1, b2):
+    # b = [x, y, w, h] in COCO convention
+    x1, y1, w1, h1 = b1
+    x2, y2, w2, h2 = b2
+    xa, ya = max(x1, x2), max(y1, y2)
+    xb, yb = min(x1 + w1, x2 + w2), min(y1 + h1, y2 + h2)
+    inter = max(0, xb - xa) * max(0, yb - ya)
+    union = w1 * h1 + w2 * h2 - inter
+    return inter / union if union > 0 else 0.0
+
+def build_id_map(layout_coco, reading_json, file_name, shape, iou_threshold=0.9):
+    # Group COCO annotations by image_id for fast lookup
+    rb_to_coco = {}  # reading-bank region id -> coco annotation id
+    tgt_index = None
+    for item in reading_json:
+        if item["image"] == file_name:
+            tgt_index = item["layoutreader"]["text"]["tgt_index"]
+            for region in item["regions"]:
+                best, best_iou = None, 0.0
+                for ann in layout_coco:
+                    score = iou(region["bbox_norm_1000"], norm_1000(ann["bbox"], shape))
+                    if score > best_iou:
+                        best, best_iou = ann, score
+                if best and best_iou >= iou_threshold:
+                    rb_to_coco[region["index"]] = best["id"]
+    return rb_to_coco, tgt_index
+
+def norm_1000(annotation, shape):
+    return [
+        annotation[0] / shape[0] * 1000,
+        annotation[1] / shape[1] * 1000,
+        (annotation[0] + annotation[2]) / shape[0] * 1000,
+        (annotation[1] + annotation[3]) / shape[1] * 1000,
+    ]
 
 # ==============================================================================
 # Entry point
@@ -184,6 +223,11 @@ if __name__ == "__main__":
         type=str,
     )
     parser.add_argument(
+        "-c", "--connections-annotations-file",
+        help="Path to the JSON annotation file including connections",
+        type=str,
+    )
+    parser.add_argument(
         "-i", "--image-id",
         help="Image ID to visualize",
         type=str,
@@ -191,7 +235,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-m", "--mode",
         help="Action: join-annotations, prepare-annotations, order-images, "
-             "remove-scores, review-annotations, or visualize (default)",
+             "remove-scores, review-annotations, count-annotations, or visualize (default)",
         type=str,
         default="visualize",
     )
@@ -281,9 +325,13 @@ if __name__ == "__main__":
         )
 
     elif args.mode == "review-annotations":
+        if not args.annotations_file:
+            print("Please provide an annotation file.")
+            exit(1)
+
         # Documents already reviewed — skip these when reviewing
         already_checked = {
-            "00de9bb518f39464b6b5bb7254d6fdd6e2e2e1fa46710ffe84a6863dca4be950",
+            #"00de9bb518f39464b6b5bb7254d6fdd6e2e2e1fa46710ffe84a6863dca4be950",
             "0166d9b3f20fa5a4f6bd9d6d001f8b81b24665a6368dd0c10ed3d8a9e30dd691",
             "04bb9872050b5a73939ae9734a7a1f6935df7b6623f03dc407f3403d52392aa6",
             "04bc67afae7e1c9113cbbd83e98df59f252ba7757ad90d2c8856f227e5cd8beb",
@@ -325,6 +373,26 @@ if __name__ == "__main__":
         coco_data = join_annotations(args.path)
         save_coco_to_json(coco_data, args.output_path)
 
+    elif args.mode == "count-annotations":
+        if not args.annotations_file:
+            print("Please provide an annotation file.")
+            exit(1)
+
+        coco = COCO(args.annotations_file)
+        counts = {}
+        for ann in coco.loadAnns(coco.getAnnIds()):
+            cat_name = coco.cats[ann["category_id"]]["name"]
+            counts[cat_name] = counts.get(cat_name, 0) + 1
+
+        total = sum(counts.values())
+        col_w = max(len(name) for name in counts) + 2
+        print(f"\n{'Category':<{col_w}} {'Count':>8}  {'%':>6}")
+        print("-" * (col_w + 18))
+        for name, count in sorted(counts.items(), key=lambda x: -x[1]):
+            print(f"{name:<{col_w}} {count:>8}  {count / total * 100:>5.1f}%")
+        print("-" * (col_w + 18))
+        print(f"{'TOTAL':<{col_w}} {total:>8}  {'100.0%':>6}\n")
+
     elif args.mode == "assign-ids":
         if not args.path:
             print("Please provide a folder path to join annotations.")
@@ -350,4 +418,5 @@ if __name__ == "__main__":
             exit(1)
 
         coco = COCO(args.annotations_file)
-        visualize_annotations(coco, args.image_id, save_path=args.save_visualization)
+        rec = json.load(open(args.connections_annotations_file))
+        visualize_annotations(coco, args.image_id, connections=rec, save_path=args.save_visualization)

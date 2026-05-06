@@ -24,14 +24,15 @@ extension a corpus). The pipeline outputs annotations in COCO format.
 
 | Model                | Type                  | Description | Repository                                                                                                       |
 |----------------------|-----------------------|-------------|------------------------------------------------------------------------------------------------------------------|
+| **PP-DocLayoutV3**   | TODO                  | TODO        | **[PaddlePaddle/PP-DocLayoutV3](https://huggingface.co/PaddlePaddle/PP-DocLayoutV3)**                            |
+| **RF-DETR**          | TODO                  | TODO        | **[neka-nat/rfdetr-doclayout](https://huggingface.co/neka-nat/rfdetr-doclayout)**                                |
+| **DETR**             | TODO                  | TODO        | **[cmarkea/detr-layout-detection](https://huggingface.co/cmarkea/detr-layout-detection)**                        |
+| **Paragraph2Graph**  | Graph-Based           | TODO        | **[NormXU/Layout2Graph](https://github.com/NormXU/Layout2Graph)**                                                |
 | **MinerU**           | Vision language model | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**                                                  |
 | **Docling**          | Vision language model | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**                                                  |
 | **PaddleOCR**        | TODO                  | TODO        | **[opendatalab/mineru](https://github.com/opendatalab/mineru)**                                                  |
 | **Recursive-XY-cut** | TODO                  | TODO        | **[Ehsan1997/Recursive-XY-cut-Python](https://github.com/Ehsan1997/Recursive-XY-cut-Python)**                    |
 | **RLSA**             | TODO                  | TODO        | **[Vasistareddy/pythonRLSA](https://github.com/Vasistareddy/pythonRLSA)**                                        |
-| **PP-DocLayout-L**   | TODO                  | TODO        | **[PaddlePaddle/PP-DocLayout-L](https://huggingface.co/PaddlePaddle/PP-DocLayout-L)**                            |
-| **RF-DETR**          | TODO                  | TODO        | **[neka-nat/rfdetr-doclayout-L](https://huggingface.co/neka-nat/rfdetr-doclayout)**                              |
-| **DETR**             | TODO                  | TODO        | **[neka-nat/rfdetr-doclayout-L](https://huggingface.co/cmarkea/detr-layout-detection)**                          |
 | **DINO**             | Transformer-Based     | TODO        | **[IDEA-Research/DINO](https://github.com/IDEA-Research/DINO)**                                                  |
 | **VSR**              | TODO                  | TODO        | **[hikopensource/DAVAR-Lab-OCR](https://github.com/hikopensource/DAVAR-Lab-OCR/tree/main/demo/text_layout/VSR)** |
 | **M2Doc**            | Multimodal            | TODO        | **[johnning2333/M2Doc](https://github.com/johnning2333/M2Doc)**                                                  |
@@ -44,7 +45,6 @@ extension a corpus). The pipeline outputs annotations in COCO format.
 | **Faster R-CNN**    | CNN-Based         | TODO        | TODO                                                              |
 | **Mask R-CNN**      | CNN-Based         | TODO        | TODO                                                              |
 | **Doc-GCN**         | TODO              | TODO        | **[adlnlp/doc_gcn](https://github.com/adlnlp/doc_gcn)**           |
-| **Paragraph2Graph** | TODO              | TODO        | **[NormXU/Layout2Graph](https://github.com/NormXU/Layout2Graph)** |
 | **DLAFormer**       | TODO              | TODO        | No public repository available                                    |
 </details>
 

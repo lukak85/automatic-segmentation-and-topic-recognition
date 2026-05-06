@@ -39,24 +39,65 @@ GLASANA_COLOR_MAP = {
 }
 
 
-def draw_layout(img, layout, save_path=None, has_score=False):
+def draw_layout(
+    img,
+    layout,
+    save_path=None,
+    has_score=False,
+    order=None,
+    order_color="blue",
+    order_line_width=2,
+):
     """Draw labeled bounding boxes on an image and display it.
 
     Args:
         img: Image (numpy array, BGR or RGB).
         layout: A layoutparser Layout with TextBlocks.
         save_path: Optional path to save the figure.
+        order: Optional reading order. A list of layout indices (ints).
+        order_color: Line/number color for the reading-order overlay.
+        order_line_width: Line width for the reading-order overlay.
     """
+
     viz = lp.draw_box(
         img,
-        [b.set(id=f"{b.score:.2f}/{b.type}" if has_score else f"{b.type}") for b in layout],
+        [b.set(id=f"{b.score:.2f}/{b.type}" if has_score else f"{b.type}/{b.id}") for b in layout],
         color_map=GLASANA_COLOR_MAP,
         show_element_id=True,
         id_font_size=10,
         id_text_background_color="grey",
         id_text_color="white",
+        order=order,
+        order_color=order_color,
+        order_line_width=order_line_width,
     )
     draw_pil_image(viz, save_path)
+
+
+def _resolve_order(blocks, order):
+    """Map an `order` argument (ids or indices) to layout indices.
+
+    Accepts either a list of ints (positions in `blocks`) or a list of
+    strings (block.id values). Unknown ids / out-of-range indices are
+    silently dropped so partial / dirty inputs still render.
+    """
+    if not order:
+        return []
+
+    if all(isinstance(x, str) for x in order):
+        id_to_idx = {b.id: i for i, b in enumerate(blocks) if b.id is not None}
+        resolved = [id_to_idx[x] for x in order if x in id_to_idx]
+    else:
+        n = len(blocks)
+        resolved = [int(x) for x in order if 0 <= int(x) < n]
+
+    # Drop duplicates while preserving first-seen order.
+    seen, unique = set(), []
+    for i in resolved:
+        if i not in seen:
+            seen.add(i)
+            unique.append(i)
+    return unique
 
 
 def draw_pil_image(img, save_path=None):
