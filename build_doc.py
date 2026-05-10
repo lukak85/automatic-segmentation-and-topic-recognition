@@ -16,6 +16,8 @@ import sys
 from pathlib import Path
 
 import pdfplumber
+from pdf2image import convert_from_path
+from PIL import Image
 
 from glasana_doc import (
     AnyDocItem,
@@ -95,7 +97,28 @@ def _extract_text_for_page(
     return results
 
 
-def build_document(pdf_path: str) -> GlasanaDocument:
+def _crop_and_save_figure(
+    page_image: Image.Image,
+    bbox_norm_1000: list[float],
+    out_path: Path,
+    padding: int = 4,
+) -> str:
+    """Crop a figure region from a rendered page image and save it.
+
+    bbox_norm_1000 is [x0, y0, x1, y1] in 0-1000 normalised space (top-left origin).
+    Returns the saved path as a string.
+    """
+    w, h = page_image.size
+    x0 = max(0, int(bbox_norm_1000[0] / 1000 * w) - padding)
+    y0 = max(0, int(bbox_norm_1000[1] / 1000 * h) - padding)
+    x1 = min(w, int(bbox_norm_1000[2] / 1000 * w) + padding)
+    y1 = min(h, int(bbox_norm_1000[3] / 1000 * h) + padding)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    page_image.crop((x0, y0, x1, y1)).save(out_path)
+    return str(out_path)
+
+
+def build_document(pdf_path: str, figures_dir: str = "figures", dpi: int = 200) -> GlasanaDocument:
     pdf_stem = Path(pdf_path).stem  # e.g. "ac30fbcf..."
 
     # --- Load pipeline outputs ---
@@ -112,6 +135,9 @@ def build_document(pdf_path: str) -> GlasanaDocument:
     }
 
     doc = GlasanaDocument(source_pdf=pdf_stem)
+    fig_out_dir = Path(figures_dir) / pdf_stem
+    # Cache rendered page images so we only call pdf2image once per page
+    rendered_pages: dict[int, Image.Image] = {}
 
     with pdfplumber.open(pdf_path) as pdf:
         for img_info in sorted(
@@ -130,19 +156,22 @@ def build_document(pdf_path: str) -> GlasanaDocument:
             )
 
             if page_stem not in conn_by_page:
-                # No reading order data for this page — skip
                 continue
 
             conn_entry = conn_by_page[page_stem]
-            regions = conn_entry["regions"]           # list in source order
+            regions = conn_entry["regions"]
             tgt_index = conn_entry["layoutreader"]["text"]["tgt_index"]
-            # tgt_index[i] = source index of the i-th item in reading order
             ordered_regions = [regions[i] for i in tgt_index]
 
-            # Extract text for all regions on this page at once
             texts = _extract_text_for_page(pdf, page_no, regions, img_w, img_h)
 
-            # --- Article grouping: start a new article at each Headline ---
+            # Check if this page has any figures before rendering it
+            has_figures = any(r["label"] == "Figure" for r in regions)
+            if has_figures and page_no not in rendered_pages:
+                rendered_pages[page_no] = convert_from_path(
+                    pdf_path, dpi=dpi, first_page=page_no + 1, last_page=page_no + 1
+                )[0]
+
             current_article: Article | None = None
 
             for reading_pos, region in enumerate(ordered_regions):
@@ -156,19 +185,20 @@ def build_document(pdf_path: str) -> GlasanaDocument:
                 text = texts.get(region["region_id"], "")
                 item_cls = LABEL_TO_CLASS.get(label, ParagraphItem)
 
-                # Build the item
                 kwargs = dict(provenance=prov, reading_order=reading_pos)
-                if issubclass(item_cls, FigureItem) and not issubclass(item_cls, TextItem):
-                    item: AnyDocItem = item_cls(**kwargs)
+                if item_cls is FigureItem:
+                    fig_path = fig_out_dir / f"p{page_no}_{region['region_id']}.jpg"
+                    _crop_and_save_figure(
+                        rendered_pages[page_no], region["bbox_norm_1000"], fig_path
+                    )
+                    item: AnyDocItem = FigureItem(image_path=str(fig_path), **kwargs)
                 else:
                     item = item_cls(text=text, **kwargs)
 
-                # Start a new article at each headline
                 if isinstance(item, HeadlineItem):
                     current_article = Article(title=text)
                     doc.add_article(current_article)
 
-                # Assign to current article
                 if current_article is not None:
                     item.article_id = current_article.article_id
                     current_article.item_ids.append(item.item_id)
@@ -185,11 +215,13 @@ def main():
         sys.exit(1)
 
     print(f"Building GlasanaDocument for {pdf_path} ...")
-    doc = build_document(pdf_path)
+    doc = build_document(pdf_path, figures_dir="figures")
 
+    figures = [i for i in doc.items.values() if isinstance(i, FigureItem)]
     print(f"\nDocument summary:")
     print(f"  Pages    : {len(doc.pages)}")
     print(f"  Items    : {len(doc.items)} total, {len(doc.body_order)} in body")
+    print(f"  Figures  : {len(figures)} extracted")
     print(f"  Articles : {len(doc.articles)}")
     for art in doc.articles.values():
         print(f"    - \"{art.title}\" ({len(art.item_ids)} items)")
