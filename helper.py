@@ -9,6 +9,7 @@ from utils.displayutils import *
 from utils.fileutils import save_coco_to_json, read_json
 
 IMAGES_ROOT = "annotation/pawls/labels/images/"
+PDF_ROOT = "annotation/pawls/skiff_files/apps/pawls/papers/"
 STATUS_JSON = "annotation/pawls/skiff_files/apps/pawls/papers/status/development_user@example.com.json"
 
 # IoU threshold above which two annotations are considered duplicates
@@ -146,11 +147,13 @@ def visualize_annotations(coco, image_id, connections=None, save_path=None):
     anns = coco.loadAnns(coco.getAnnIds([int(image_id)]))
     layout = load_coco_annotations(anns, categories=coco.cats)
     display_img = cv2.imread(img_path)
-    id_map, tgt_index = build_id_map(anns, connections, img_info["file_name"], (img_info["width"], img_info["height"]))
-    coco_id_order = [id_map[i] for i in tgt_index if i in id_map]
-    index_map = {id_: i for i, id_ in enumerate(sorted(coco_id_order))}
-    positions = [index_map[id_] for id_ in coco_id_order]
-    draw_layout(display_img, layout, order=tgt_index, save_path=save_path)
+    positions = None
+    if connections:
+        id_map, tgt_index = build_id_map(anns, connections, img_info["file_name"], (img_info["width"], img_info["height"]))
+        coco_id_order = [id_map[i] for i in tgt_index if i in id_map]
+        index_map = {id_: i for i, id_ in enumerate(sorted(coco_id_order))}
+        positions = [index_map[id_] for id_ in coco_id_order]
+    draw_layout(display_img, layout, order=positions, save_path=save_path)
 
 
 def visualize_all_images(coco, save_path=None, skip_hashes=None):
@@ -210,6 +213,47 @@ def norm_1000(annotation, shape):
         (annotation[1] + annotation[3]) / shape[1] * 1000,
     ]
 
+def extract_chars_in_boxes(pdf_path: str, page_num: int, bboxes: list[dict]) -> dict:
+    """
+    bboxes: list of {"id": str, "x0": float, "y0": float, "x1": float, "y1": float}
+    Coordinates are in PDF points (origin = bottom-left by default in pdfplumber).
+    Returns: {bbox_id: extracted_text}
+    """
+    results = {}
+
+    import pdfplumber
+    with pdfplumber.open(pdf_path) as pdf:
+        page = pdf.pages[page_num]
+
+        for bbox in bboxes:
+            # Crop the page to the bounding box region
+            region = page.within_bbox((bbox["x0"], bbox["y0"], bbox["x1"], bbox["y1"]))
+            text = region.extract_text() or ""
+            results[bbox["id"]] = text.strip()
+
+    return results
+
+def load_coco_bboxes(coco_path: str, image_id: int) -> list[dict]:
+    """
+    Reads COCO annotations for a given image_id.
+    Converts COCO [x, y, w, h] → {"id", "x0", "y0", "x1", "y1"}.
+    """
+    c = COCO(coco_path)
+    annotations = c.loadAnns(coco.getAnnIds([int(image_id)]))
+
+    bboxes = []
+    for ann in annotations:
+        x, y, w, h = ann["bbox"]
+        bboxes.append({
+            "id":  ann["id"],
+            "x0": x,
+            "y0": y,
+            "x1": x + w,
+            "y1": y + h,
+        })
+
+    return bboxes
+
 # ==============================================================================
 # Entry point
 # ==============================================================================
@@ -220,6 +264,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "-a", "--annotations-file",
         help="Path to the COCO annotation file",
+        type=str,
+    )
+    parser.add_argument(
+        "-b", "--box-id",
+        help="Bounding box ID to focus on.",
         type=str,
     )
     parser.add_argument(
@@ -235,7 +284,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-m", "--mode",
         help="Action: join-annotations, prepare-annotations, order-images, "
-             "remove-scores, review-annotations, count-annotations, or visualize (default)",
+             "remove-scores, review-annotations, count-annotations, text-extraction or visualize (default)",
         type=str,
         default="visualize",
     )
@@ -403,6 +452,47 @@ if __name__ == "__main__":
             annotation["segmentation"] = None
         save_coco_to_json(coco_data, args.output_path)
 
+    elif args.mode == "text-extraction":
+        if not args.annotations_file:
+            print("Please provide an annotation file.")
+            exit(1)
+        if not args.image_id:
+            print("Please provide an image ID to extract text for.")
+            exit(1)
+
+        coco = COCO(args.annotations_file)
+        img_info = coco.loadImgs(coco.getImgIds([int(args.image_id)]))[0]
+        file_name = img_info["file_name"].split(".")[0].split("_")
+        files_name = file_name[0]
+        page = int(file_name[1])
+
+        anns = coco.loadAnns(coco.getAnnIds([int(args.image_id)]))
+
+        boxes = load_coco_bboxes(args.annotations_file, args.image_id)
+        res = extract_chars_in_boxes(
+            PDF_ROOT + files_name  + "/" + files_name + ".pdf",
+            page,
+            boxes
+        )
+
+        if args.box_id:
+            print(res[(int(args.box_id))])
+        else:
+            if args.connections_annotations_file:
+                rec = json.load(open(args.connections_annotations_file))
+
+                id_map, tgt_index = build_id_map(anns, rec, img_info["file_name"],
+                                                 (img_info["width"], img_info["height"]))
+                coco_id_order = [id_map[i] for i in tgt_index if i in id_map]
+
+                # Sort res based on positions
+                #sorted_res = [res[coco_id] for coco_id in sorted(coco_id_order, key=lambda x: positions[index_map[x]])]
+                sorted_res = [res[coco_id] for coco_id in coco_id_order]
+
+                print(sorted_res)
+            else:
+                print(res)
+
     elif args.remove_duplicates:
         coco = COCO(args.annotations_file)
         coco_data = remove_duplicates(coco, args.annotations_file)
@@ -418,5 +508,7 @@ if __name__ == "__main__":
             exit(1)
 
         coco = COCO(args.annotations_file)
-        rec = json.load(open(args.connections_annotations_file))
+        rec = None
+        if args.connections_annotations_file:
+            rec = json.load(open(args.connections_annotations_file))
         visualize_annotations(coco, args.image_id, connections=rec, save_path=args.save_visualization)
