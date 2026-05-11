@@ -550,29 +550,49 @@ def _table_to_markdown(td: TableData) -> list[str]:
 # HTML renderer
 # ---------------------------------------------------------------------------
 
-def to_html(doc: GlasanaDocument, wrap_articles: bool = True) -> str:
+def to_html(doc: GlasanaDocument, wrap_articles: bool = True, css_path: str = "glasana.css") -> str:
     """Render body content as semantic HTML5."""
-    parts = ["<!DOCTYPE html>", "<html>", "<body>"]
+    title = doc.source_pdf or "Glasana"
+    parts = [
+        "<!DOCTYPE html>",
+        "<html lang='sl'>",
+        "<head>",
+        f'  <meta charset="UTF-8"/>',
+        f'  <meta name="viewport" content="width=device-width, initial-scale=1"/>',
+        f'  <title>{title}</title>',
+        f'  <link rel="stylesheet" href="{css_path}"/>',
+        "</head>",
+        "<body>",
+        '<div class="magazine">',
+    ]
     seen: set[str] = set()
 
     if wrap_articles and doc.articles:
         for art in doc.articles.values():
             parts.append(f'<article id="{art.article_id}">')
+            parts.append('<div class="article-body">')
             for item in doc.iter_article(art.article_id):
                 parts.extend(_item_to_html(item, doc, seen))
+            parts.append("</div>")
             parts.append("</article>")
-        # Items not belonging to any article
         art_items: set[str] = {iid for a in doc.articles.values() for iid in a.item_ids}
         orphans = [iid for iid in doc.body_order if iid not in art_items]
-        for iid in orphans:
-            item = doc.items.get(iid)
-            if item:
-                parts.extend(_item_to_html(item, doc, seen))
+        if orphans:
+            parts.append('<article>')
+            parts.append('<div class="article-body">')
+            for iid in orphans:
+                item = doc.items.get(iid)
+                if item:
+                    parts.extend(_item_to_html(item, doc, seen))
+            parts.append("</div>")
+            parts.append("</article>")
     else:
+        parts.append('<div class="article-body">')
         for item in doc.iter_body():
             parts.extend(_item_to_html(item, doc, seen))
+        parts.append("</div>")
 
-    parts += ["</body>", "</html>"]
+    parts += ["</div>", "</body>", "</html>"]
     return "\n".join(parts)
 
 

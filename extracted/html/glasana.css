@@ -1,0 +1,289 @@
+/* =========================================================
+   Glasana Magazine Stylesheet
+   ========================================================= */
+
+:root {
+  --accent:     #8B1A1A;   /* deep editorial red */
+  --ink:        #1a1a1a;
+  --muted:      #6b6b6b;
+  --rule:       #d4cfc9;
+  --paper:      #f7f3ee;   /* warm off-white, newsprint feel */
+  --page-width: 960px;
+  --col-gap:    2.5rem;
+
+  --font-serif: Georgia, "Times New Roman", Times, serif;
+  --font-sans:  "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
+
+/* ---- Reset ---- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ---- Page chrome ---- */
+body {
+  font-family: var(--font-serif);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 2rem 1rem 4rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+.magazine {
+  max-width: var(--page-width);
+  margin: 0 auto;
+}
+
+/* ---- Article card ---- */
+article {
+  background: #fff;
+  margin-bottom: 3rem;
+  padding: 2.5rem 3rem 2.5rem;
+  border-top: 5px solid var(--accent);
+  box-shadow: 0 1px 6px rgba(0,0,0,.07);
+}
+
+/* ---- Two-column body ---- */
+.article-body {
+  columns: 2;
+  column-gap: var(--col-gap);
+  column-rule: 1px solid var(--rule);
+  hyphens: auto;
+  orphans: 3;
+  widows: 3;
+}
+
+/* Everything that must break out of columns and span full width */
+.article-body > p.kicker,
+.article-body > h1,
+.article-body > p.deck,
+.article-body > address,
+.article-body > h2,
+.article-body > h3,
+.article-body > figure,
+.article-body > blockquote,
+.article-body > table,
+.article-body > ol,
+.article-body > ul,
+.article-body > aside,
+.article-body > nav,
+.article-body > pre {
+  column-span: all;
+}
+
+/* A thin rule separates the article header block from the body columns */
+.article-body > address:last-of-type {
+  padding-bottom: 1.4rem;
+  margin-bottom: 1.4rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* ---- Kicker ---- */
+p.kicker {
+  font-family: var(--font-sans);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: .35rem;
+}
+
+/* ---- Headline ---- */
+h1 {
+  font-family: var(--font-serif);
+  font-size: 2.8rem;
+  font-weight: 700;
+  line-height: 1.08;
+  color: var(--ink);
+  margin-bottom: .5rem;
+  hyphens: auto;
+}
+
+/* ---- Deck / Standfirst ---- */
+p.deck {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-style: italic;
+  line-height: 1.5;
+  color: #444;
+  margin-bottom: .7rem;
+}
+
+/* ---- Byline / Author ---- */
+address {
+  font-family: var(--font-sans);
+  font-size: .75rem;
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: .4rem;
+}
+
+/* ---- Body paragraphs ---- */
+p {
+  font-size: .95rem;
+  line-height: 1.72;
+  text-align: justify;
+  margin-bottom: .7em;
+  break-inside: avoid;
+}
+
+/* ---- Subheads ---- */
+h2 {
+  font-family: var(--font-sans);
+  font-size: .82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--accent);
+  margin: 1.6rem 0 .5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+h3 {
+  font-family: var(--font-serif);
+  font-size: .95rem;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--ink);
+  margin: 1rem 0 .3rem;
+}
+
+/* ---- Pull quote ---- */
+blockquote {
+  margin: 1.6rem 0;
+  padding: .8rem 1.4rem;
+  border-left: 4px solid var(--accent);
+  font-size: 1.2rem;
+  font-style: italic;
+  line-height: 1.5;
+  color: #333;
+}
+
+/* ---- Drop cap ---- */
+span.dropcap {
+  float: left;
+  font-family: var(--font-serif);
+  font-size: 4.8rem;
+  font-weight: 700;
+  line-height: .78;
+  margin: .06em .1em 0 0;
+  color: var(--accent);
+}
+
+/* ---- Figures ---- */
+figure {
+  margin: 1.8rem 0;
+  break-inside: avoid;
+}
+
+figure img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+figcaption {
+  font-family: var(--font-sans);
+  font-size: .72rem;
+  color: var(--muted);
+  margin-top: .4rem;
+  line-height: 1.45;
+}
+
+cite.fig-byline {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: .66rem;
+  color: #aaa;
+  font-style: normal;
+  text-align: right;
+  margin-top: .15rem;
+}
+
+/* ---- Tables ---- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .85rem;
+  margin: 1.4rem 0;
+}
+
+th {
+  background: var(--ink);
+  color: #fff;
+  padding: .45em .8em;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: .72rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+td {
+  padding: .4em .8em;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+tr:nth-child(even) td { background: #faf8f5; }
+
+/* ---- Lists ---- */
+ol, ul {
+  margin: .9rem 0 .9rem 1.6rem;
+  font-size: .95rem;
+  line-height: 1.72;
+}
+li { margin-bottom: .25em; }
+
+/* ---- Footnotes ---- */
+aside.footnote {
+  font-family: var(--font-sans);
+  font-size: .72rem;
+  color: var(--muted);
+  border-top: 1px solid var(--rule);
+  margin-top: 2rem;
+  padding-top: .6rem;
+  line-height: 1.5;
+}
+
+/* ---- Table of contents ---- */
+nav.toc {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 1rem 1.2rem;
+  font-size: .85rem;
+  margin: 1.2rem 0;
+  line-height: 1.6;
+}
+
+/* ---- Miscellaneous text classes ---- */
+p.dateline, p.section, p.editnote, p.marginnote {
+  font-family: var(--font-sans);
+  font-size: .72rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+p.translator { font-size: .82rem; color: var(--muted); font-style: italic; }
+
+p.literary, p.literature {
+  font-style: italic;
+  border-left: 2px solid var(--rule);
+  padding-left: 1rem;
+  color: #555;
+}
+
+p.question { font-weight: 700; color: var(--accent); }
+
+/* Ads hidden by default */
+aside.advertisement { display: none; }
+
+/* ---- Responsive: single column on narrow screens ---- */
+@media (max-width: 640px) {
+  .article-body          { columns: 1; }
+  article                { padding: 1.5rem 1.2rem; }
+  h1                     { font-size: 1.9rem; }
+}
