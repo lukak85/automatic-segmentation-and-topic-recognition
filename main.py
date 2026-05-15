@@ -85,6 +85,7 @@ def main(
             draw_layout(display_img, ground_truth)
 
     # Evaluation against ground truth
+    metric_scores = {}
     if evaluation_metric is not None:
         if evaluation_metric == "f1":
             print(f1_score(layout, ground_truth))
@@ -93,7 +94,10 @@ def main(
             map_score = metrics['map'].item()  # mAP@0.50:0.95 (primary metric)
             map_50 = metrics['map_50'].item()  # mAP@IoU=0.50
             map_75 = metrics['map_75'].item()  # mAP@IoU=0.75
-            print(map_score, map_50, map_75)
+            # print(map_score, map_50, map_75)
+            metric_scores["map"] = map_score
+            metric_scores["map_50"] = map_50
+            metric_scores["map_75"] = map_75
 
     # Save detections in COCO format
     if save_coco is not None:
@@ -109,6 +113,7 @@ def main(
     if save_image_path is not None:
         draw_layout(display_img, layout, save_path=save_image_path)
 
+    return metric_scores
 
 # ==============================================================================
 # Helper functions
@@ -123,7 +128,7 @@ def read_picture(path, to_rgb=True):
     return img
 
 
-def load_coco_annotations(annotations, coco=None):
+def load_coco_annotations(annotations, categories=None):
     """Convert a list of COCO annotation dicts into a layoutparser Layout.
 
     Args:
@@ -134,16 +139,16 @@ def load_coco_annotations(annotations, coco=None):
 
     for ann in annotations:
         x, y, w, h = ann["bbox"]
-        category = (
-            ann["category_id"]
-            if coco is None
-            else coco.cats[ann["category_id"]]["name"]
-        )
         layout.append(
             lp.TextBlock(
                 block=lp.Rectangle(x, y, w + x, h + y),
-                type=category,
+                type=(
+                    categories[ann["category_id"]]["name"]
+                    if categories
+                    else ann["category_id"]
+                ),
                 id=ann["id"],
+                score=ann.get("score", 1),
             )
         )
 
@@ -265,7 +270,8 @@ def load_images_for_mode(mode, coco, file_path):
         for image_id, image_info in coco.imgs.items():
             if image_info["file_name"] == filename:
                 coco_anns = load_coco_annotations(
-                    coco.loadAnns(coco.getAnnIds([image_id]))
+                    coco.loadAnns(coco.getAnnIds([image_id])),
+                    categories=coco.cats
                 )
                 image_list.append(f"{parent_dir}/{image_info['file_name']}")
                 coco_anns_list.append(coco_anns)
@@ -278,7 +284,8 @@ def load_images_for_mode(mode, coco, file_path):
         for image_id, image_info in coco.imgs.items():
             if pdf_name in image_info["file_name"]:
                 coco_anns = load_coco_annotations(
-                    coco.loadAnns(coco.getAnnIds([image_id]))
+                    coco.loadAnns(coco.getAnnIds([image_id])),
+                    categories = coco.cats
                 )
                 image_list.append(f"{parent_dir}/{image_info['file_name']}")
                 coco_anns_list.append(coco_anns)
@@ -334,6 +341,11 @@ if __name__ == "__main__":
         required=True,
     )
     parser.add_argument(
+        "-dt", "--display-text",
+        help="Display text corresponding with bounding boxes",
+        action="store_true",
+    )
+    parser.add_argument(
         "-e", "--evaluation-metric",
         help="Evaluation metric: f1 or map",
         type=str,
@@ -382,6 +394,8 @@ if __name__ == "__main__":
 
     categories = coco.cats
 
+    metric_scores_list = []
+
     # Process each image
     for image_path, coco_anns, img_info in zip(image_list, coco_anns_list, img_info_list):
         print(f"Processing image: {image_path}")
@@ -400,7 +414,7 @@ if __name__ == "__main__":
             else None
         )
 
-        main(
+        metric_scores = main(
             image,
             img_info,
             coco_anns,
@@ -413,3 +427,22 @@ if __name__ == "__main__":
             save_coco=save_coco_path,
             save_image_path=args.save_image_path,
         )
+
+        metric_scores_list.append(metric_scores)
+
+    # Print average evaluation scores across all images
+    if args.evaluation_metric:
+        from collections import defaultdict
+        # Accumulate sums and counts per key
+        totals = defaultdict(float)
+        counts = defaultdict(int)
+
+        for d in metric_scores_list:
+            for key, value in d.items():
+                totals[key] += value
+                counts[key] += 1
+
+        averages = {key: totals[key] / counts[key] for key in totals}
+
+        print(metric_scores_list)
+        print(f"Averages: {averages}")
