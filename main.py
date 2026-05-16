@@ -212,13 +212,15 @@ def init_model(method, config, verbose=False):
         return (
             lp.LayoutLMv3LayoutModel(**config)
             if config is not None
-            else lp.LayoutLMv3LayoutModel(WEIGHTS_PATH + "/layoutlmv3/model_final.pth")
+            else lp.LayoutLMv3LayoutModel(WEIGHTS_PATH + "/layoutlmv3/model_final.pth",
+                                          yaml_path="config/layoutlmv3/yaml/cascade_layoutlmv3.yaml")
         )
     elif method == "dit":
         return (
             lp.DiTLayoutModel(**config)
             if config is not None
-            else lp.DiTLayoutModel(WEIGHTS_PATH + "/dit/publaynet_dit-b_cascade.pth")
+            else lp.DiTLayoutModel(WEIGHTS_PATH + "/dit/publaynet_dit-b_cascade.pth",
+                                   yaml_path="config/dit/yaml/cascade_dit_base.yaml")
         )
     elif method == "doclayout-yolo":
         return (
@@ -233,7 +235,10 @@ def init_model(method, config, verbose=False):
         return (
             lp.VGTLayoutModel(**config)
             if config is not None
-            else lp.VGTLayoutModel(WEIGHTS_PATH + "/vgt/D4LA_VGT_model.pth", grid_root="./data/vgt/grid/")
+            else lp.VGTLayoutModel(
+                WEIGHTS_PATH + "/vgt/D4LA_VGT_model.pth",
+                grid_root="./data/vgt/grid/",
+                yaml_path="config/vgt/yaml/D4LA_VGT_cascade_PTM.yaml")
         )
     elif method == "nemotron":
         return (
