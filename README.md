@@ -7,15 +7,23 @@ extension a corpus). The pipeline outputs annotations in COCO format.
 
 ## Supported Models
 
+### Main Models
+
+| Model              | Type                        | Description                                                                                 | Repository                                                                                                                                        |
+|--------------------|-----------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| **DiT**            | Document Image Transformers | Document image transformer pre-trained via masked image modeling                            | **[microsoft/unilm](https://github.com/microsoft/unilm/tree/master/dit)**                                                                         |
+| **DocLayout-YOLO** | Object detection            | YOLOv10-based model for document structure                                                  | **[opendatalab/DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO)**                                                                   |
+| **Faster R-CNN**   | CNN-Based                   | Two-stage detector using a Region Proposal Network to localize and classify layout regions  | Included in LayoutParser with detectron2                                                                                                          |
+| **LayoutLMv3**     | Multimodal                  | Jointly encodes text, layout, and image patches for document understanding                  | **[microsoft/unilm](https://github.com/microsoft/unilm/tree/master/layoutlmv3)**                                                                  |
+| **Mask R-CNN**     | CNN-Based                   | Extends Faster R-CNN with a parallel branch that predicts segmentation masks per region     | Included in LayoutParser with detectron2                                                                                                          |
+| **VGT**            | Multimodal                  | Vision grid transformer pretrained on MGLM and SLM and segment-level semantic understanding | **[AlibabaResearch/AdvancedLiterateMachinery](https://github.com/AlibabaResearch/AdvancedLiterateMachinery/tree/main/DocumentUnderstanding/VGT)** |
+
+### Other Models
+
 | Model              | Type                        | Description                                                                                 | Repository                                                                                                                                        |
 |--------------------|-----------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Docstrum**       | Bottom-up                   | Line-based document structure analysis                                                      | **[chulwoopack/docstrum](https://github.com/chulwoopack/docstrum)**                                                                               |
-| **LayoutLMv3**     | Multimodal                  | Jointly encodes text, layout, and image patches for document understanding                  | **[microsoft/unilm](https://github.com/microsoft/unilm/tree/master/layoutlmv3)**                                                                  |
-| **DiT**            | Document Image Transformers | Document image transformer pre-trained via masked image modeling                            | **[microsoft/unilm](https://github.com/microsoft/unilm/tree/master/dit)**                                                                         |
-| **DocLayout-YOLO** | Object detection            | YOLOv10-based model for document structure                                                  | **[opendatalab/DocLayout-YOLO](https://github.com/opendatalab/DocLayout-YOLO)**                                                                   |
-| **DotsOCR**        | Vision-language             | Layout detection + OCR via vLLM server                                                      | **[rednote-hilab/dots.ocr](https://github.com/rednote-hilab/dots.ocr)**                                                                           |
 | **Nemotron**       | Vision-language             | Nemotron Page Elements v3 built on top of YOLOX                                             | **[nvidia/nemotron-page-elements-v3](https://huggingface.co/nvidia/nemotron-page-elements-v3)**                                                   |
-| **VGT**            | Multimodal                  | Vision grid transformer pretrained on MGLM and SLM and segment-level semantic understanding | **[AlibabaResearch/AdvancedLiterateMachinery](https://github.com/AlibabaResearch/AdvancedLiterateMachinery/tree/main/DocumentUnderstanding/VGT)** |
 
 <details>
 <summary><b>Work in Progress and Planned Models</b></summary>
@@ -42,8 +50,6 @@ extension a corpus). The pipeline outputs annotations in COCO format.
 
 | Model               | Type              | Description | Repository                                                        |
 |---------------------|-------------------|-------------|-------------------------------------------------------------------|
-| **Faster R-CNN**    | CNN-Based         | TODO        | TODO                                                              |
-| **Mask R-CNN**      | CNN-Based         | TODO        | TODO                                                              |
 | **Doc-GCN**         | TODO              | TODO        | **[adlnlp/doc_gcn](https://github.com/adlnlp/doc_gcn)**           |
 | **DLAFormer**       | TODO              | TODO        | No public repository available                                    |
 </details>

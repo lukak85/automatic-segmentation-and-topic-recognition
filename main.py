@@ -4,16 +4,17 @@ import sys
 
 # Map CLI method names to LAYOUTPARSER_BACKEND values.
 _METHOD_TO_BACKEND = {
-    "detectron2": "detectron2",
-    "docstrum": "docstrum",
-    "dotsocr": "dotsocr",
-    "doclayout-yolo": "doclayout_yolo",
-    "layoutlmv3": "layoutlmv3",
     "dit": "dit",
-    "vgt": "vgt",
+    "docstrum": "docstrum",
+    "doclayout-yolo": "doclayout_yolo",
+    "dotsocr": "dotsocr",
+    "faster-rcnn": "detectron2",
+    "layoutlmv3": "layoutlmv3",
+    "mask-rcnn": "detectron2",
     "nemotron": "nemotron",
     "recursive-xycut": "recursive_xycut",
     "rlsa": "rlsa",
+    "vgt": "vgt",
 }
 
 
@@ -178,10 +179,17 @@ def init_model(method, config, verbose=False):
     Returns:
         A layoutparser model instance.
     """
-    if method == "detectron2":
+    if method == "faster-rcnn":
         return lp.Detectron2LayoutModel(
-            "lp://PubLayNet/faster_rcnn_R_50_FPN_3x/config",
-            model_path="/home/luka/.torch/iopath_cache/s/dgy9c10wykk4lq4/model_final.pth",
+            "./data/model/fasterrcnn/publaynet/config.yml",
+            model_path="./data/model/fasterrcnn/publaynet/model_final.pth",
+            extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8],
+            label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
+        )
+    elif method == "mask-rcnn":
+        return lp.Detectron2LayoutModel(
+            "./data/model/maskrcnn/publaynet/50/config.yml",
+            model_path="./data/model/maskrcnn/publaynet/50/model_final.pth",
             extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8],
             label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
         )
@@ -401,7 +409,7 @@ if __name__ == "__main__":
         print(f"Processing image: {image_path}")
 
         # Load the image: as numpy array for detectron2, as path for other models
-        if args.dla_method == "detectron2":
+        if args.dla_method in ("faster-rcnn", "mask-rcnn"):
             image = read_picture(image_path)
         elif args.dla_method in ("docstrum", "rlsa"):
             image = read_picture(image_path, to_rgb=False)
@@ -423,7 +431,7 @@ if __name__ == "__main__":
             categories,
             visualization=show,
             display_ground=args.display_ground,
-            display_img=image if args.dla_method in  ("docstrum", "rlsa") else cv2.imread(image),
+            display_img=image if args.dla_method in ("faster-rcnn", "mask-rcnn", "docstrum", "rlsa") else cv2.imread(image),
             save_coco=save_coco_path,
             save_image_path=args.save_image_path,
         )
