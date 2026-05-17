@@ -174,7 +174,7 @@ def init_model(method, config, verbose=False):
 
     Args:
         method: One of "faster-rcnn", "mask-rcnn", "vgt", "doclayout-yolo",
-                "layoutlmv3", or "dit".
+                "layoutlmv3", "dit", "pp-doclayoutv3" or "rf-detr".
         config: Dict of model kwargs loaded from JSON config, or None.
         verbose: Whether to enable verbose output (only used by some models).
 
