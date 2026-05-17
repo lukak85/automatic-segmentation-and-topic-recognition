@@ -12,6 +12,7 @@ _METHOD_TO_BACKEND = {
     "layoutlmv3": "layoutlmv3",
     "mask-rcnn": "detectron2",
     "nemotron": "nemotron",
+    "pp-doclayoutv3" : "ppdoclayoutv3",
     "recursive-xycut": "recursive_xycut",
     "rlsa": "rlsa",
     "vgt": "vgt",
@@ -171,7 +172,7 @@ def init_model(method, config, verbose=False):
     """Instantiate the appropriate DLA model based on the method name.
 
     Args:
-        method: One of "detectron2", "docstrum", "dotsocr", "doclayout-yolo",
+        method: One of "faster-rcnn", "mask-rcnn", "vgt", "doclayout-yolo",
                 "layoutlmv3", or "dit".
         config: Dict of model kwargs loaded from JSON config, or None.
         verbose: Whether to enable verbose output (only used by some models).
@@ -198,15 +199,6 @@ def init_model(method, config, verbose=False):
             lp.DocstrumLayoutModel(**config, verbose=verbose)
             if config is not None
             else lp.DocstrumLayoutModel(verbose=verbose)
-        )
-    elif method == "dotsocr":
-        if not check_connection():
-            print("For dots.ocr, first start the vLLM server before running this script.")
-            exit(1)
-        return (
-            lp.DotsOCRLayoutModel(**config)
-            if config is not None
-            else lp.DotsOCRLayoutModel()
         )
     elif method == "layoutlmv3":
         return (
@@ -239,6 +231,12 @@ def init_model(method, config, verbose=False):
                 WEIGHTS_PATH + "/vgt/D4LA_VGT_model.pth",
                 grid_root="./data/vgt/grid/",
                 yaml_path="config/vgt/yaml/D4LA_VGT_cascade_PTM.yaml")
+        )
+    elif method == "pp-doclayoutv3":
+        return (
+            lp.PPDocLayoutV3LayoutModel(**config)
+            if config is not None
+            else lp.PPDocLayoutV3LayoutModel()
         )
     elif method == "nemotron":
         return (

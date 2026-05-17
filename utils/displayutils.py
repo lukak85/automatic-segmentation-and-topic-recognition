@@ -2,7 +2,6 @@
 
 import cv2
 import layoutparser as lp
-import matplotlib.pyplot as plt
 import numpy as np
 
 # Color maps for layoutparser's draw_box function
@@ -116,6 +115,8 @@ def draw_pil_image(img, save_path=None):
 
     Handles BGR-to-RGB conversion for OpenCV images.
     """
+    import matplotlib.pyplot as plt
+
     if not isinstance(img, np.ndarray):
         img = np.array(img)
 
@@ -132,6 +133,8 @@ def draw_pil_image(img, save_path=None):
 
 def draw_cv2_image(img):
     """Display an OpenCV BGR image with matplotlib."""
+    import matplotlib.pyplot as plt
+
     plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     plt.show()
     plt.close()
