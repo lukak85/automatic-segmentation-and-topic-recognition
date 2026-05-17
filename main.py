@@ -15,6 +15,7 @@ _METHOD_TO_BACKEND = {
     "pp-doclayoutv3" : "ppdoclayoutv3",
     "recursive-xycut": "recursive_xycut",
     "rlsa": "rlsa",
+    "rfdert": "rfdert",
     "vgt": "vgt",
 }
 
@@ -237,6 +238,12 @@ def init_model(method, config, verbose=False):
             lp.PPDocLayoutV3LayoutModel(**config)
             if config is not None
             else lp.PPDocLayoutV3LayoutModel()
+        )
+    elif method == "rf-detr":
+        return (
+            lp.RFDETRLayoutModel(**config)
+            if config is not None
+            else lp.RFDETRLayoutModel()
         )
     elif method == "nemotron":
         return (
